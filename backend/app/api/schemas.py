@@ -288,6 +288,53 @@ class ImportIssueOut(ApiModel):
     raw: str | None
 
 
+# --- Dashboard & risk flags ---
+
+
+class DashboardTotals(ApiModel):
+    patients: int
+    encounters: int
+    observations: int
+    upcoming_appointments: int
+
+
+class LabeledCount(ApiModel):
+    label: str
+    count: int
+
+
+class MonthCount(ApiModel):
+    year: int
+    month: int
+    count: int
+
+
+class RiskSummary(ApiModel):
+    high: int
+    moderate: int
+    flagged: int
+
+
+class DashboardOut(ApiModel):
+    totals: DashboardTotals
+    sex_breakdown: list[LabeledCount]
+    age_bands: list[LabeledCount]
+    source_breakdown: list[LabeledCount]
+    encounter_trend: list[MonthCount]
+    observation_trend: list[MonthCount]
+    risk_summary: RiskSummary
+
+
+class RiskFlagOut(ApiModel):
+    patient_id: uuid.UUID
+    patient_name: str
+    mrn: str
+    age: int
+    score: int
+    level: str
+    reasons: list[str]
+
+
 # --- Audit ---
 
 
