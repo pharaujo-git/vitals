@@ -37,6 +37,11 @@ All sample data is synthetic — no real patient data is used anywhere.
 | + | Per-patient vitals trend charts (small multiples) |
 | + | Imaging & document attachments with inline preview (PNG/JPEG/PDF/DICOM) |
 | + | Refresh-token rotation with reuse detection; refresh token in an httpOnly cookie |
+| + | Profile page: display name, photo upload, password change |
+| + | Admin user management: roles, deactivation, temp-password resets |
+| + | Login lockout (5 tries / 15 min) and a forgot-password flow |
+| + | Appointment week calendar and a next-free-slot finder |
+| + | Live in-app notifications (appointment changes, high-risk alerts) |
 | + | Reproducible research evaluation — see [docs/EVALUATION.md](docs/EVALUATION.md) |
 
 A detailed walkthrough of every page — what it shows, who can open it, and the

@@ -15,7 +15,7 @@ test('clinician creates a patient and finds them via search', async ({ page }) =
   await page.getByRole('button', { name: 'Create' }).click()
 
   // Modal closes and the new patient is searchable.
-  await page.getByPlaceholder('Search by name or identifier…').fill(lastName)
+  await page.getByPlaceholder('Search by name, identifier, phone or email…').fill(lastName)
   const row = page.getByRole('row', { name: new RegExp(lastName) })
   await expect(row).toBeVisible()
 

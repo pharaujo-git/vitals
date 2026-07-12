@@ -81,3 +81,49 @@ def test_logout_revokes_without_theft_response(db):
     auth.revoke_refresh_token(db, token)
     with pytest.raises(ValueError, match="Session ended"):
         auth.rotate_refresh_token(db, token)
+
+
+def test_lockout_after_repeated_failures(db):
+    user = make_user(db, password="password123")
+    for _ in range(4):
+        with pytest.raises(ValueError, match="Invalid email or password"):
+            auth.authenticate(db, user.email, "wrong")
+    with pytest.raises(ValueError, match="account locked"):
+        auth.authenticate(db, user.email, "wrong")  # 5th failure locks
+    with pytest.raises(ValueError, match="Too many failed attempts"):
+        auth.authenticate(db, user.email, "password123")  # even the right password waits
+
+
+def test_successful_login_resets_failure_counter(db):
+    user = make_user(db, password="password123")
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            auth.authenticate(db, user.email, "wrong")
+    auth.authenticate(db, user.email, "password123")
+    db.refresh(user)
+    assert user.failed_logins == 0
+
+
+def test_deactivated_account_cannot_login(db):
+    user = make_user(db, password="password123")
+    user.active = False
+    db.commit()
+    with pytest.raises(ValueError, match="deactivated"):
+        auth.authenticate(db, user.email, "password123")
+
+
+def test_password_reset_flow(db):
+    user = make_user(db, password="password123")
+    auth.request_password_reset(db, user.email, base_url="http://test")
+    token = db.query(models.PasswordResetToken).filter_by(user_id=user.id).one()
+
+    auth.reset_password(db, str(token.id), "brand-new-pass1")
+    assert auth.authenticate(db, user.email, "brand-new-pass1").id == user.id
+    # single use
+    with pytest.raises(ValueError, match="invalid or has expired"):
+        auth.reset_password(db, str(token.id), "another-pass1")
+
+
+def test_reset_request_is_silent_for_unknown_email(db):
+    auth.request_password_reset(db, "ghost@nowhere.test", base_url="http://test")
+    assert db.query(models.PasswordResetToken).count() == 0

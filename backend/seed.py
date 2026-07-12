@@ -50,8 +50,9 @@ HISTORIES = [
 def wipe(db):
     for table in (models.ImportIssue, models.ImportBatch, models.DuplicateFlag,
                   models.ConsentGrant, models.Observation, models.Encounter,
-                  models.Appointment, models.Message, models.Problem,
-                  models.Medication, models.Allergy, models.AuditLog):
+                  models.Appointment, models.MessageAttachment, models.Message,
+                  models.Problem, models.Medication, models.Allergy,
+                  models.Attachment, models.Notification, models.AuditLog):
         db.query(table).delete()
     db.query(models.Patient).delete()
     db.commit()

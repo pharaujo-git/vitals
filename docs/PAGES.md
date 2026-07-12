@@ -27,7 +27,19 @@ the right card holds the form.
   the four seeded accounts (Administrator, Clinician, Front desk, Manager). One
   click fills the form; nothing auto-submits. The block is compiled out of
   production builds (`import.meta.env.DEV`).
-- **Create an account** — links to `/register`.
+- **Brute-force lockout** — five failed attempts lock the account for 15
+  minutes (HTTP 429 with the remaining wait); a successful login resets the
+  counter.
+- **Create an account** — links to `/register`. **Forgot password?** — links
+  to the reset flow below.
+
+## Forgot / reset password — `/forgot-password`, `/reset-password`
+
+Requesting a reset always shows the same acknowledgement (no user
+enumeration). When the account exists, a **single-use token valid for one
+hour** is minted — without email infrastructure the reset link is written to
+the backend server log. The reset page consumes the token, sets the new
+password, clears any lockout, and revokes every session.
 
 After sign-in, the user lands on `/` (see *Landing behavior* below).
 
@@ -60,6 +72,11 @@ server-side). Success signs the user straight in.
   desk never sees clinical rows). Records the caller cannot open under consent
   rules are filtered out server-side. Clicking any hit navigates to that
   patient's record.
+- **Notifications bell** — unread badge and a dropdown of recent alerts
+  (opening marks them read). Notifications are generated when someone else
+  books, moves or cancels one of your appointments, and when newly recorded
+  observations push a patient into the high-risk band. A dedicated SSE
+  channel keeps the badge live.
 - **Theme toggle** — light/dark, remembered in localStorage.
 - **User menu** — shows name/email; **Sign out** clears credentials and the API
   cache.
@@ -104,11 +121,13 @@ patient (moderate); ≥ 6 is high.
 
 The patient registry, server-paginated (20 per page).
 
-- **Search box** — filters by first name, last name, full name, or MRN
-  identifier as you type (page resets on every keystroke).
-- **Table** — name with computed age, MRN, date of birth, sex, phone, and a
-  source badge showing which system the record came from. Clicking a row opens
-  the record.
+- **Search box** — matches first/last/full name, MRN identifier, phone or
+  email as you type (page resets on every keystroke).
+- **Sort** — by name, date of birth, or newest first (whitelisted
+  server-side).
+- **Table** — name with computed age, MRN, date of birth, sex, phone, current
+  **risk level** (computed per request by the rule engine), and a source
+  badge. Clicking a row opens the record.
 - **New patient** (clinicians/admins only) — modal with demographics (first and
   last name, date of birth, sex), contact fields, address, and free-text
   medical history. Validation: the date of birth cannot be in the future; MRNs
@@ -201,7 +220,20 @@ Administrators additionally see:
 
 **Access:** Clinician, Front desk, Administrator (`GET /api/appointments`).
 
-A day-at-a-time schedule, paginated at 50.
+Two views, toggled in the header: the **day list** and a **week grid**.
+
+The week grid shows one clinician at a time across seven day columns and
+clinic hours (8:00–18:00): appointment blocks are positioned by time and
+colored by status, today is highlighted, and clicking a booked block opens
+the reschedule modal (`GET /api/appointments/week`).
+
+The booking modal includes **Find next free slot**
+(`GET /api/appointments/next-free`): it scans the chosen clinician's booked
+schedule on 15-minute boundaries inside clinic hours — up to two weeks ahead
+— and fills the form with the first gap long enough for the requested
+duration.
+
+The day list is paginated at 50.
 
 - **Day controls** — previous/next arrows, a date picker, and a Today shortcut.
 - **Clinician filter** — restrict the list to one clinician (the *daily
@@ -350,6 +382,24 @@ Internal email-style messaging between staff.
 
 Both actions are audited (`user.profile_updated`, `user.password_changed`).
 
+## Users — `/users`
+
+**Access:** Administrator only.
+
+Account administration with search and pagination:
+
+- **Role** — changed inline per user (admin, clinician, front desk, manager).
+- **Deactivate / Reactivate** — a deactivated account is signed out
+  everywhere immediately, cannot sign in, and disappears from clinician and
+  message-recipient pickers; its historical records stay attributed.
+- **Reset password** — issues a one-time temporary password (shown to the
+  admin once) and signs the user out everywhere; it also clears any lockout.
+- **Self-protection** — admins cannot change their own role, deactivate
+  themselves, or reset their own password here.
+
+All actions are audited (`user.role_changed`, `user.activated`,
+`user.deactivated`, `user.password_reset_by_admin`).
+
 ## Audit log — `/audit`
 
 **Access:** Administrator only (`GET /api/audit`).
@@ -372,8 +422,9 @@ fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 `patient.fhir_exported`, `consent.updated`, `access.denied`,
 `report.exported`, `message.sent`, `problem.added / updated / removed`,
 `medication.added / updated / removed`, `allergy.added / removed`,
-`attachment.uploaded / viewed / removed`, `user.profile_updated`, and
-`user.password_changed`.
+`attachment.uploaded / viewed / removed`, `user.profile_updated`,
+`user.password_changed`, `user.role_changed`, `user.activated / deactivated`,
+and `user.password_reset_by_admin`.
 
 ---
 
@@ -389,6 +440,7 @@ fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 | Import `/import` | ✓ | – | – | – |
 | Messages `/messages` | ✓ | ✓ | ✓ | ✓ |
 | Profile `/profile` | ✓ | ✓ | ✓ | ✓ |
+| Users `/users` | ✓ | – | – | – |
 | Reports `/reports` | ✓ (identified) | – | – | ✓ (de-identified) |
 | Audit `/audit` | ✓ | – | – | – |
 | Topbar search | ✓ | ✓ | ✓ (patients only) | – |
