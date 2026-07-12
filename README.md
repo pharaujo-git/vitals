@@ -32,6 +32,9 @@ All sample data is synthetic — no real patient data is used anywhere.
 | US-11 | Global search across names, MRN identifiers and encounters, scoped to access rights |
 | US-12 | Cohort reports with CSV export; identifying fields excluded for non-admin roles |
 
+A detailed walkthrough of every page — what it shows, who can open it, and the
+endpoints behind it — lives in [docs/PAGES.md](docs/PAGES.md).
+
 ## Getting started
 
 Requirements: Python 3.13+, Node 20+, PostgreSQL running locally.
