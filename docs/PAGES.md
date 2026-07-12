@@ -138,6 +138,24 @@ the record's source badge, **Export FHIR** and **Edit** (clinicians/admins).
 
 Clinicians and administrators also see:
 
+- **Clinical lists card** (`GET /api/patients/:id/clinical-lists`) — three
+  structured sections, each with inline add forms and per-row actions, all
+  audited:
+  - **Problem list** — condition description, optional ICD-10 code and onset
+    date, with an active/resolved status toggle and remove action.
+  - **Medications** — name, dose and frequency with an active/stopped badge, a
+    stop action, and remove.
+  - **Allergies** — substance, optional reaction, and severity (mild /
+    moderate / severe, color-coded).
+  These feed the risk engine: active chronic conditions on the problem list
+  and polypharmacy (5+ active medications) add explainable points to the
+  patient's risk score, and all three lists export as FHIR resources
+  (Condition, MedicationStatement, AllergyIntolerance) in the bundle.
+- **Timeline card** (`GET /api/patients/:id/timeline`, paginated) — one
+  chronological stream, newest first, merging encounters (with observation
+  counts and clinician), appointments (with status), and every
+  problem/medication/allergy change, each with a kind icon and source badge.
+
 - **Encounters card** (paginated, 10 per page) — every encounter, newest first:
   type, reason, timestamp, documenting clinician, observation count, source
   badge. Rows expand in place to show each observation (code, value with unit,
@@ -278,6 +296,28 @@ Cohort builder with export.
     merely hidden.
   Every export is audited with its filters and whether it was de-identified.
 
+## Messages — `/messages`
+
+**Access:** every signed-in role.
+
+Internal email-style messaging between staff.
+
+- **Tabs** — **Inbox** (with an unread count pill and an unread-only filter)
+  and **Sent**, both paginated (`GET /api/messages/inbox`, `/api/messages/sent`).
+  Unread rows show a dot and bold subject.
+- **New message** (`POST /api/messages`) — recipient picker listing every
+  staff member with their role, subject, body, and (for clinical/front-desk
+  roles) an optional **patient link** found by name or MRN. Sends are audited.
+- **Thread view** — clicking a row opens the conversation as chat-style
+  bubbles (yours right-aligned). Opening marks your unread messages in it
+  read. A linked patient shows as a badge that jumps to the record. The
+  **reply** box addresses the other participant automatically, prefixes
+  `Re:`, and keeps the reply in the same thread (replies inherit the
+  conversation and its patient link). Only participants can open a thread.
+- **Unread badges** — the sidebar Messages entry and a topbar mail icon show
+  the unread count, polled every 30 seconds
+  (`GET /api/messages/unread-count`).
+
 ## Audit log — `/audit`
 
 **Access:** Administrator only (`GET /api/audit`).
@@ -297,8 +337,9 @@ Recorded actions include: `patient.viewed / created / updated`,
 `encounters.viewed`, `encounter.created`, `observation.added`,
 `appointment.booked / moved / completed / cancelled`, `import.csv / hl7 /
 fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
-`patient.fhir_exported`, `consent.updated`, `access.denied`, and
-`report.exported`.
+`patient.fhir_exported`, `consent.updated`, `access.denied`,
+`report.exported`, `message.sent`, `problem.added / updated / removed`,
+`medication.added / updated / removed`, and `allergy.added / removed`.
 
 ---
 
@@ -312,6 +353,17 @@ fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 | Appointments `/appointments` | ✓ | ✓ | ✓ | – |
 | Duplicates `/duplicates` | ✓ | ✓ | – | – |
 | Import `/import` | ✓ | – | – | – |
+| Messages `/messages` | ✓ | ✓ | ✓ | ✓ |
 | Reports `/reports` | ✓ (identified) | – | – | ✓ (de-identified) |
 | Audit `/audit` | ✓ | – | – | – |
 | Topbar search | ✓ | ✓ | ✓ (patients only) | – |
+
+---
+
+## End-to-end tests
+
+`frontend/e2e/` holds a Playwright suite (`npm run e2e`) covering login and
+registration, patient creation with search and validation, encounter
+observation range rejection, appointment booking/cancellation, cross-session
+messaging with reply, and per-role RBAC checks. It runs against the dev
+servers with the seeded database and reuses them when already running.

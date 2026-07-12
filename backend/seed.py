@@ -50,7 +50,8 @@ HISTORIES = [
 def wipe(db):
     for table in (models.ImportIssue, models.ImportBatch, models.DuplicateFlag,
                   models.ConsentGrant, models.Observation, models.Encounter,
-                  models.Appointment, models.AuditLog):
+                  models.Appointment, models.Message, models.Problem,
+                  models.Medication, models.Allergy, models.AuditLog):
         db.query(table).delete()
     db.query(models.Patient).delete()
     db.commit()
@@ -157,6 +158,76 @@ def seed(db):
                     taken_at=occurred,
                     source=source,
                 ))
+
+    # Clinical lists matching each patient's profile.
+    profile_problems = {
+        "hypertensive": ("Essential hypertension", "I10", ["Lisinopril 10 mg", "Amlodipine 5 mg"]),
+        "diabetic": ("Type 2 diabetes mellitus", "E11.9", ["Metformin 500 mg", "Empagliflozin 10 mg"]),
+        "copd": ("Chronic obstructive pulmonary disease", "J44.9", ["Tiotropium inhaler"]),
+    }
+    allergens = [("Penicillin", "Hives", "severe"), ("Sulfa drugs", "Rash", "moderate"),
+                 ("Latex", "Contact dermatitis", "mild"), ("Peanuts", "Anaphylaxis", "severe")]
+    for patient, profile in patients:
+        if profile in profile_problems:
+            description, icd, meds = profile_problems[profile]
+            db.add(models.Problem(
+                patient_id=patient.id, description=description, icd_code=icd,
+                status="active", onset_date=date.today() - timedelta(days=random.randint(200, 3000)),
+            ))
+            for med in meds:
+                parts = med.split(" ")
+                db.add(models.Medication(
+                    patient_id=patient.id, name=parts[0],
+                    dose=" ".join(parts[1:]) or None, frequency="daily", active=True,
+                    started_date=date.today() - timedelta(days=random.randint(30, 1000)),
+                ))
+        if random.random() < 0.25:
+            substance, reaction, severity = random.choice(allergens)
+            db.add(models.Allergy(
+                patient_id=patient.id, substance=substance, reaction=reaction, severity=severity,
+            ))
+    # A few polypharmacy cases to exercise that risk rule.
+    for patient, _ in random.sample(patients, 4):
+        for med_name in ("Atorvastatin", "Omeprazole", "Aspirin", "Levothyroxine", "Sertraline"):
+            db.add(models.Medication(
+                patient_id=patient.id, name=med_name, dose="1 tab", frequency="daily", active=True,
+            ))
+
+    # Internal messages, including a patient-linked thread with a reply.
+    def message(sender, recipient, subject, body, patient=None, parent=None, read=False):
+        message_id = uuid.uuid4()
+        msg = models.Message(
+            id=message_id,
+            sender_id=sender.id,
+            recipient_id=recipient.id,
+            patient_id=patient.id if patient else None,
+            parent_id=parent.id if parent else None,
+            root_id=parent.root_id if parent else message_id,
+            subject=subject,
+            body=body,
+            read_at=now if read else None,
+        )
+        db.add(msg)
+        db.flush()
+        return msg
+
+    front, manager = users["front@vitals.test"], users["manager@vitals.test"]
+    chen, okafor, admin = users["chen@vitals.test"], users["okafor@vitals.test"], users["admin@vitals.test"]
+    linked_patient = patients[1][0]
+    first_message = message(
+        front, chen, "Reschedule request",
+        f"{linked_patient.first_name} {linked_patient.last_name} asked to move Friday's visit to next week — any slot preference?",
+        patient=linked_patient, read=True,
+    )
+    message(chen, front, "Re: Reschedule request",
+            "Tuesday morning works, anything before 11.", patient=linked_patient,
+            parent=first_message)
+    message(manager, chen, "Monthly population review",
+            "Could you glance at the new high-risk flags before Thursday's meeting?")
+    message(admin, okafor, "HL7 feed cutover",
+            "The external lab switches endpoints this weekend; expect a test batch on Monday.")
+    message(okafor, front, "Out Thursday afternoon",
+            "Please avoid booking me after 1pm this Thursday.")
 
     # A couple of cross-source duplicate candidates for the review workflow.
     for patient, _ in random.sample(patients, 2):

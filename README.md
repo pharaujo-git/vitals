@@ -31,6 +31,9 @@ All sample data is synthetic — no real patient data is used anywhere.
 | US-10 | Append-only audit log of who viewed/changed what, and when |
 | US-11 | Global search across names, MRN identifiers and encounters, scoped to access rights |
 | US-12 | Cohort reports with CSV export; identifying fields excluded for non-admin roles |
+| US-13 | Internal email-style messaging: threads, patient links, unread badges |
+| US-14 | Problem list, medications and allergies — feeding risk rules and the FHIR export |
+| US-15 | Unified chronological patient timeline across all record types |
 
 A detailed walkthrough of every page — what it shows, who can open it, and the
 endpoints behind it — lives in [docs/PAGES.md](docs/PAGES.md).
@@ -55,6 +58,10 @@ cp .env.example .env        # then set a random JWT_SECRET
 cd frontend
 npm install
 npm run dev                 # http://localhost:5173 (proxies /api to :8000)
+
+# End-to-end tests (Playwright; uses the running servers + seeded data)
+npx playwright install chromium   # once
+npm run e2e
 ```
 
 ### Demo logins (password `password123`)
