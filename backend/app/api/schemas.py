@@ -87,3 +87,51 @@ class PatientOut(ApiModel):
     source: str
     created_at: datetime
     updated_at: datetime
+
+
+# --- Appointments ---
+
+
+class ClinicianOut(ApiModel):
+    id: uuid.UUID
+    display_name: str
+
+
+class AppointmentInput(ApiModel):
+    patient_id: uuid.UUID
+    clinician_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    reason: str | None = Field(default=None, max_length=255)
+
+
+class AppointmentStatusInput(ApiModel):
+    status: str
+
+
+class AppointmentOut(ApiModel):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    patient_name: str
+    patient_mrn: str
+    clinician_id: uuid.UUID
+    clinician_name: str
+    start_at: datetime
+    end_at: datetime
+    reason: str | None
+    status: str
+
+    @classmethod
+    def from_orm_appointment(cls, a) -> "AppointmentOut":
+        return cls(
+            id=a.id,
+            patient_id=a.patient_id,
+            patient_name=f"{a.patient.first_name} {a.patient.last_name}",
+            patient_mrn=a.patient.mrn,
+            clinician_id=a.clinician_id,
+            clinician_name=a.clinician.display_name,
+            start_at=a.start_at,
+            end_at=a.end_at,
+            reason=a.reason,
+            status=a.status,
+        )
