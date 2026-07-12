@@ -1,3 +1,5 @@
+import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import update
@@ -32,6 +34,50 @@ def authenticate(db: Session, email: str, password: str) -> models.User:
     if user is None or not security.verify_password(password, user.password_hash):
         raise ValueError("Invalid email or password")
     return user
+
+
+# --- Profile ---
+
+AVATAR_PREFIXES = ("data:image/png;base64,", "data:image/jpeg;base64,")
+MAX_AVATAR_BYTES = 300 * 1024  # decoded
+
+
+def update_profile(
+    db: Session, user: models.User, *, display_name: str, avatar: str | None
+) -> models.User:
+    if avatar is not None:
+        prefix = next((p for p in AVATAR_PREFIXES if avatar.startswith(p)), None)
+        if prefix is None:
+            raise ValueError("Avatar must be a PNG or JPEG data URL")
+        try:
+            decoded = base64.b64decode(avatar[len(prefix):], validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("Avatar image data is not valid base64")
+        if len(decoded) > MAX_AVATAR_BYTES:
+            raise ValueError("Avatar exceeds the 300 KB limit — pick a smaller image")
+    user.display_name = display_name.strip()
+    user.avatar = avatar
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(
+    db: Session, user: models.User, *, current_password: str, new_password: str
+) -> None:
+    if not security.verify_password(current_password, user.password_hash):
+        raise ValueError("Current password is incorrect")
+    if len(new_password) < 8:
+        raise ValueError("New password needs at least 8 characters")
+    user.password_hash = security.hash_password(new_password)
+    # Sign out every other session: revoke all live refresh tokens.
+    db.execute(
+        update(models.RefreshToken)
+        .where(models.RefreshToken.user_id == user.id,
+               models.RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    db.commit()
 
 
 # --- Refresh-token rotation ---

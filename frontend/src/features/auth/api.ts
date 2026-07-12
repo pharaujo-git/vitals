@@ -18,7 +18,20 @@ export const authApi = baseApi.injectEndpoints({
     logout: build.mutation<void, void>({
       query: () => ({ url: '/auth/logout', method: 'POST' }),
     }),
+    updateProfile: build.mutation<User, { displayName: string; avatar: string | null }>({
+      query: (body) => ({ url: '/auth/profile', method: 'PUT', body }),
+    }),
+    changePassword: build.mutation<void, { currentPassword: string; newPassword: string }>({
+      query: (body) => ({ url: '/auth/change-password', method: 'POST', body }),
+    }),
   }),
 })
 
-export const { useLoginMutation, useRegisterMutation, useMeQuery, useLogoutMutation } = authApi
+export const {
+  useLoginMutation,
+  useRegisterMutation,
+  useMeQuery,
+  useLogoutMutation,
+  useUpdateProfileMutation,
+  useChangePasswordMutation,
+} = authApi

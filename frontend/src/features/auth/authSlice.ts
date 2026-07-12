@@ -32,6 +32,10 @@ const authSlice = createSlice({
       state.accessToken = action.payload.accessToken
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     },
+    updateUser(state, action: PayloadAction<User>) {
+      state.user = action.payload
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    },
     clearCredentials(state) {
       state.user = null
       state.accessToken = null
@@ -40,5 +44,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { setCredentials, clearCredentials } = authSlice.actions
+export const { setCredentials, updateUser, clearCredentials } = authSlice.actions
 export default authSlice.reducer

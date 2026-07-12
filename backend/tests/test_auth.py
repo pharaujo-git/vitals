@@ -47,6 +47,34 @@ def test_reuse_detection_revokes_family(db):
     assert live == 0
 
 
+def test_update_profile_validates_avatar(db):
+    user = make_user(db)
+    # 1x1 png
+    png = ("data:image/png;base64,"
+           "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==")
+    updated = auth.update_profile(db, user, display_name="Renamed", avatar=png)
+    assert updated.display_name == "Renamed"
+    assert updated.avatar == png
+
+    with pytest.raises(ValueError, match="PNG or JPEG data URL"):
+        auth.update_profile(db, user, display_name="X", avatar="data:image/gif;base64,AAAA")
+    with pytest.raises(ValueError, match="not valid base64"):
+        auth.update_profile(db, user, display_name="X", avatar="data:image/png;base64,@@@@")
+
+
+def test_change_password_revokes_sessions(db):
+    user = make_user(db, password="password123")
+    token = auth.issue_refresh_token(db, user)
+
+    with pytest.raises(ValueError, match="Current password is incorrect"):
+        auth.change_password(db, user, current_password="wrong", new_password="newpassword1")
+
+    auth.change_password(db, user, current_password="password123", new_password="newpassword1")
+    assert auth.authenticate(db, user.email, "newpassword1").id == user.id
+    with pytest.raises(ValueError):  # old refresh token died with the change
+        auth.rotate_refresh_token(db, token)
+
+
 def test_logout_revokes_without_theft_response(db):
     user = make_user(db)
     token = auth.issue_refresh_token(db, user)

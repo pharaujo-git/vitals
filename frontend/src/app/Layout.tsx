@@ -132,22 +132,34 @@ export function AppLayout() {
 
         <div className={`border-sidenav-line border-t px-5 py-4 ${collapsed ? 'lg:px-2' : ''}`}>
           <div className={`flex items-center gap-2.5 ${collapsed ? 'lg:hidden' : ''}`}>
-            <span className="text-sidenav-ink-bright flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-bold">
-              {user.displayName.charAt(0).toUpperCase()}
-            </span>
+            {user.avatar ? (
+              <img src={user.avatar} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="text-sidenav-ink-bright flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-bold">
+                {user.displayName.charAt(0).toUpperCase()}
+              </span>
+            )}
             <div className="min-w-0">
               <p className="text-sidenav-ink-bright truncate text-sm font-semibold">{user.displayName}</p>
               <p className="text-sidenav-ink truncate text-xs">{roleLabels[user.role]}</p>
             </div>
           </div>
-          {collapsed && (
-            <span
-              title={user.displayName}
-              className="text-sidenav-ink-bright mx-auto hidden size-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold lg:flex"
-            >
-              {user.displayName.charAt(0).toUpperCase()}
-            </span>
-          )}
+          {collapsed &&
+            (user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.displayName}
+                title={user.displayName}
+                className="mx-auto hidden size-8 rounded-full object-cover lg:block"
+              />
+            ) : (
+              <span
+                title={user.displayName}
+                className="text-sidenav-ink-bright mx-auto hidden size-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold lg:flex"
+              >
+                {user.displayName.charAt(0).toUpperCase()}
+              </span>
+            ))}
         </div>
       </aside>
 
@@ -257,9 +269,13 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
             onClick={() => setMenuOpen((v) => !v)}
             className="hover:bg-well flex items-center gap-2.5 rounded-full py-1.5 pr-2 pl-1.5 transition-colors"
           >
-            <span className="bg-primary/15 text-primary flex size-8 items-center justify-center rounded-full text-sm font-bold">
-              {user?.displayName.charAt(0).toUpperCase()}
-            </span>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className="size-8 rounded-full object-cover" />
+            ) : (
+              <span className="bg-primary/15 text-primary flex size-8 items-center justify-center rounded-full text-sm font-bold">
+                {user?.displayName.charAt(0).toUpperCase()}
+              </span>
+            )}
             <span className="text-ink hidden text-sm font-semibold sm:block">{user?.displayName}</span>
             <i className="iconify tabler--chevron-down text-ink-muted text-sm" aria-hidden />
           </button>
@@ -269,6 +285,14 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
                 <p className="text-ink truncate text-sm font-semibold">{user?.displayName}</p>
                 <p className="text-ink-muted truncate text-xs">{user?.email}</p>
               </div>
+              <Link
+                to="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="text-ink hover:bg-well flex w-full items-center gap-2 px-4 py-2 text-sm font-medium"
+              >
+                <i className="iconify tabler--user-circle" aria-hidden />
+                Profile
+              </Link>
               <button
                 onClick={logout}
                 className="text-accent-red hover:bg-well flex w-full items-center gap-2 px-4 py-2 text-sm font-medium"

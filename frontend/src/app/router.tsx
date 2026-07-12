@@ -11,6 +11,7 @@ import { ImportPage } from '../features/import/ImportPage'
 import { DuplicatesPage } from '../features/duplicates/DuplicatesPage'
 import { ReportsPage } from '../features/reports/ReportsPage'
 import { MessagesPage } from '../features/messages/MessagesPage'
+import { ProfilePage } from '../features/profile/ProfilePage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
           { path: 'duplicates', element: <DuplicatesPage /> },
           { path: 'reports', element: <ReportsPage /> },
           { path: 'messages', element: <MessagesPage /> },
+          { path: 'profile', element: <ProfilePage /> },
         ],
       },
     ],

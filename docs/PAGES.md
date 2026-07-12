@@ -333,6 +333,23 @@ Internal email-style messaging between staff.
   (`GET /api/events/messages`) that signals when your mail state changes,
   invalidating the message caches — no interval polling.
 
+## Profile — `/profile`
+
+**Access:** every signed-in role (via the user menu in the topbar).
+
+- **Profile card** (`PUT /api/auth/profile`) — edit the display name and
+  upload a **profile photo** (PNG/JPEG; the browser cover-crops it to a
+  256 px square JPEG before upload, and the server validates the data URL
+  and enforces a 300 KB cap). Email and role are shown read-only. Saving
+  updates the sidebar and topbar immediately — photos replace the initial
+  avatars everywhere.
+- **Password card** (`POST /api/auth/change-password`) — requires the
+  current password and a confirmed new one (min. 8 characters). A
+  successful change **revokes every other session's refresh token**, so
+  stolen or forgotten logins die with the old password.
+
+Both actions are audited (`user.profile_updated`, `user.password_changed`).
+
 ## Audit log — `/audit`
 
 **Access:** Administrator only (`GET /api/audit`).
@@ -354,8 +371,9 @@ Recorded actions include: `patient.viewed / created / updated`,
 fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 `patient.fhir_exported`, `consent.updated`, `access.denied`,
 `report.exported`, `message.sent`, `problem.added / updated / removed`,
-`medication.added / updated / removed`, `allergy.added / removed`, and
-`attachment.uploaded / viewed / removed`.
+`medication.added / updated / removed`, `allergy.added / removed`,
+`attachment.uploaded / viewed / removed`, `user.profile_updated`, and
+`user.password_changed`.
 
 ---
 
@@ -370,6 +388,7 @@ fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 | Duplicates `/duplicates` | ✓ | ✓ | – | – |
 | Import `/import` | ✓ | – | – | – |
 | Messages `/messages` | ✓ | ✓ | ✓ | ✓ |
+| Profile `/profile` | ✓ | ✓ | ✓ | ✓ |
 | Reports `/reports` | ✓ (identified) | – | – | ✓ (de-identified) |
 | Audit `/audit` | ✓ | – | – | – |
 | Topbar search | ✓ | ✓ | ✓ (patients only) | – |

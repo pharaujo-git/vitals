@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api import schemas
 from app.core import security
+from app.core.audit import audit
 from app.core.config import get_settings
 from app.db import models
 from app.db.session import get_db
@@ -86,3 +87,37 @@ def logout(
 @router.get("/me", response_model=schemas.UserOut)
 def me(user: models.User = Depends(security.get_current_user)):
     return user
+
+
+@router.put("/profile", response_model=schemas.UserOut)
+def update_profile(
+    body: schemas.ProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(security.get_current_user),
+):
+    try:
+        user = auth_service.update_profile(
+            db, user, display_name=body.display_name, avatar=body.avatar
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    audit(db, user, "user.profile_updated", entity_type="user", entity_id=user.id,
+          detail={"hasAvatar": user.avatar is not None})
+    return user
+
+
+@router.post("/change-password", status_code=204)
+def change_password(
+    body: schemas.ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(security.get_current_user),
+):
+    try:
+        auth_service.change_password(
+            db, user,
+            current_password=body.current_password,
+            new_password=body.new_password,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    audit(db, user, "user.password_changed", entity_type="user", entity_id=user.id)

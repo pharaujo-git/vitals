@@ -34,6 +34,17 @@ class UserOut(ApiModel):
     email: str
     display_name: str
     role: str
+    avatar: str | None = None
+
+
+class ProfileUpdateRequest(ApiModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    avatar: str | None = None
+
+
+class ChangePasswordRequest(ApiModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class RegisterRequest(ApiModel):

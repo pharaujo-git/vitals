@@ -5,6 +5,7 @@ export interface User {
   email: string
   displayName: string
   role: Role
+  avatar: string | null
 }
 
 export interface AuthResponse {
