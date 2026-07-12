@@ -95,6 +95,44 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
   )
 }
 
+const demoAccounts = [
+  { email: 'admin@vitals.test', label: 'Administrator', icon: 'tabler--shield-lock' },
+  { email: 'chen@vitals.test', label: 'Clinician', icon: 'tabler--stethoscope' },
+  { email: 'front@vitals.test', label: 'Front desk', icon: 'tabler--device-desktop' },
+  { email: 'manager@vitals.test', label: 'Manager', icon: 'tabler--chart-histogram' },
+]
+
+const DEMO_PASSWORD = 'password123'
+
+/** Dev-only helper: one click fills the form with a seeded demo account. */
+function DemoAccounts({ onPick }: { onPick: (email: string, password: string) => void }) {
+  if (!import.meta.env.DEV) return null
+  return (
+    <div className="border-line mt-5 border-t border-dashed pt-4">
+      <p className="text-ink-muted mb-2 text-[11px] font-bold tracking-[0.1em] uppercase">
+        Demo accounts — dev only
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {demoAccounts.map((account) => (
+          <button
+            key={account.email}
+            type="button"
+            onClick={() => onPick(account.email, DEMO_PASSWORD)}
+            className="border-line text-ink-muted hover:border-primary hover:text-primary flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-xs font-semibold transition-colors"
+          >
+            <i className={`iconify ${account.icon} size-3.5 shrink-0`} aria-hidden />
+            {account.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-ink-faint mt-2 text-[11px]">
+        Password for all: <code className="bg-well rounded px-1">{DEMO_PASSWORD}</code> (from{' '}
+        <code className="bg-well rounded px-1">backend/seed.py</code>)
+      </p>
+    </div>
+  )
+}
+
 function errorMessage(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'status' in error) {
     const err = error as { status: number | string; data?: { detail?: unknown } }
@@ -152,6 +190,12 @@ export function LoginPage() {
           </Link>
         </p>
       </form>
+      <DemoAccounts
+        onPick={(demoEmail, demoPassword) => {
+          setEmail(demoEmail)
+          setPassword(demoPassword)
+        }}
+      />
     </AuthShell>
   )
 }
