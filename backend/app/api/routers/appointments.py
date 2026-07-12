@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -24,6 +24,40 @@ def list_clinicians(
     _: models.User = Depends(get_current_user),
 ):
     return UserRepository(db).clinicians()
+
+
+@router.get("/week", response_model=list[schemas.AppointmentOut])
+def week_appointments(
+    start: date,
+    clinician_id: uuid.UUID | None = Query(None, alias="clinicianId"),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(can_manage),
+):
+    """All appointments in the seven days from `start` (bounded, not a grid feed)."""
+    window_start = datetime.combine(start, time.min).astimezone()
+    window_end = window_start + timedelta(days=7)
+    items = AppointmentRepository(db).between(clinician_id, window_start, window_end)
+    return [schemas.AppointmentOut.from_orm_appointment(a) for a in items]
+
+
+@router.get("/next-free", response_model=schemas.FreeSlotOut)
+def next_free_slot(
+    clinician_id: uuid.UUID = Query(alias="clinicianId"),
+    duration: int = Query(30, ge=5, le=240),
+    day: date | None = None,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(can_manage),
+):
+    try:
+        start_at, end_at = appointment_service.find_next_free(
+            db,
+            clinician_id=clinician_id,
+            duration_minutes=duration,
+            from_day=day or date.today(),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return schemas.FreeSlotOut(start_at=start_at, end_at=end_at)
 
 
 @router.get("", response_model=schemas.Page[schemas.AppointmentOut])

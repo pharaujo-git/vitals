@@ -11,6 +11,16 @@ export const appointmentsApi = baseApi.injectEndpoints({
     clinicians: build.query<Clinician[], void>({
       query: () => '/appointments/clinicians',
     }),
+    weekAppointments: build.query<Appointment[], { start: string; clinicianId?: string }>({
+      query: (params) => ({ url: '/appointments/week', params }),
+      providesTags: ['Appointment'],
+    }),
+    nextFreeSlot: build.query<
+      { startAt: string; endAt: string },
+      { clinicianId: string; duration: number; day?: string }
+    >({
+      query: (params) => ({ url: '/appointments/next-free', params }),
+    }),
     bookAppointment: build.mutation<Appointment, AppointmentInput>({
       query: (body) => ({ url: '/appointments', method: 'POST', body }),
       invalidatesTags: ['Appointment', 'Dashboard'],
@@ -33,6 +43,8 @@ export const appointmentsApi = baseApi.injectEndpoints({
 export const {
   useAppointmentsQuery,
   useCliniciansQuery,
+  useWeekAppointmentsQuery,
+  useLazyNextFreeSlotQuery,
   useBookAppointmentMutation,
   useRescheduleAppointmentMutation,
   useSetAppointmentStatusMutation,

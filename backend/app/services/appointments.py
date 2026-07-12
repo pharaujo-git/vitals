@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -72,6 +72,48 @@ def reschedule(
     appointment.end_at = end_at
     appointment.reason = reason
     return repo.save(appointment)
+
+
+CLINIC_OPEN = time(8, 0)
+CLINIC_CLOSE = time(18, 0)
+SLOT_GRANULARITY_MINUTES = 15
+SEARCH_DAYS = 14
+
+
+def find_next_free(
+    db: Session,
+    *,
+    clinician_id: uuid.UUID,
+    duration_minutes: int,
+    from_day: date,
+) -> tuple[datetime, datetime]:
+    """First gap of the requested length in the clinician's booked schedule,
+    within clinic hours, scanning up to two weeks ahead."""
+    if not 5 <= duration_minutes <= 240:
+        raise ValueError("Duration must be between 5 and 240 minutes")
+    repo = AppointmentRepository(db)
+    duration = timedelta(minutes=duration_minutes)
+    step = timedelta(minutes=SLOT_GRANULARITY_MINUTES)
+    now = datetime.now().astimezone()
+
+    for offset in range(SEARCH_DAYS):
+        day = from_day + timedelta(days=offset)
+        open_at = datetime.combine(day, CLINIC_OPEN).astimezone()
+        close_at = datetime.combine(day, CLINIC_CLOSE).astimezone()
+        cursor = open_at
+        if now > cursor:
+            # Round the current time up to the next slot boundary.
+            minutes_past = (now - open_at).total_seconds() / 60
+            steps = int(minutes_past // SLOT_GRANULARITY_MINUTES) + 1
+            cursor = open_at + steps * step
+        booked = repo.booked_on_day(clinician_id, day)
+        for appointment in booked:
+            if cursor + duration <= appointment.start_at:
+                return cursor, cursor + duration
+            cursor = max(cursor, appointment.end_at)
+        if cursor + duration <= close_at:
+            return cursor, cursor + duration
+    raise ValueError(f"No free slot of {duration_minutes} minutes in the next {SEARCH_DAYS} days")
 
 
 def set_status(db: Session, appointment: models.Appointment, status: str) -> models.Appointment:

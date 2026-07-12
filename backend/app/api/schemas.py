@@ -167,6 +167,11 @@ class AppointmentStatusInput(ApiModel):
     status: str
 
 
+class FreeSlotOut(ApiModel):
+    start_at: datetime
+    end_at: datetime
+
+
 class AppointmentOut(ApiModel):
     id: uuid.UUID
     patient_id: uuid.UUID

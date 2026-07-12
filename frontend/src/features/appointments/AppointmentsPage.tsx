@@ -14,6 +14,7 @@ import {
   useSetAppointmentStatusMutation,
 } from './api'
 import { AppointmentModal } from './AppointmentModal'
+import { WeekView } from './WeekView'
 import type { Appointment, AppointmentStatus } from './types'
 
 const statusTones: Record<AppointmentStatus, 'blue' | 'green' | 'red'> = {
@@ -30,6 +31,7 @@ function shiftDay(day: string, delta: number): string {
 }
 
 export function AppointmentsPage() {
+  const [view, setView] = useState<'list' | 'week'>('list')
   const [day, setDay] = useState(todayIso())
   const [clinicianId, setClinicianId] = useState('')
   const [status, setStatus] = useState('')
@@ -51,12 +53,40 @@ export function AppointmentsPage() {
       <PageHeader
         title="Appointments"
         actions={
-          <Button size="sm" onClick={() => setEditing('new')}>
-            <i className="iconify tabler--plus" aria-hidden /> Book appointment
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="bg-well inline-grid grid-cols-2 gap-1 rounded-md p-1">
+              {(['list', 'week'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`flex items-center gap-1 rounded px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+                    view === v ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted'
+                  }`}
+                >
+                  <i
+                    className={`iconify ${v === 'list' ? 'tabler--list' : 'tabler--calendar-week'} size-3.5`}
+                    aria-hidden
+                  />
+                  {v}
+                </button>
+              ))}
+            </div>
+            <Button size="sm" onClick={() => setEditing('new')}>
+              <i className="iconify tabler--plus" aria-hidden /> Book appointment
+            </Button>
+          </div>
         }
       />
       <PageBody>
+        {view === 'week' && (
+          <WeekView
+            onOpenAppointment={(a) => {
+              if (a.status === 'booked') setEditing(a)
+            }}
+          />
+        )}
+        {view === 'list' && (
+          <>
         <Card className="mb-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex items-end gap-1.5">
@@ -224,6 +254,8 @@ export function AppointmentsPage() {
               noun="appointment"
             />
           </Card>
+        )}
+          </>
         )}
 
         {editing && (

@@ -5,7 +5,12 @@ import { Input, Label, Select } from '../../shared/ui/Field'
 import { Modal } from '../../shared/ui/Modal'
 import { ErrorNote } from '../../shared/ui/Page'
 import { todayIso } from '../../shared/lib/format'
-import { useBookAppointmentMutation, useCliniciansQuery, useRescheduleAppointmentMutation } from './api'
+import {
+  useBookAppointmentMutation,
+  useCliniciansQuery,
+  useLazyNextFreeSlotQuery,
+  useRescheduleAppointmentMutation,
+} from './api'
 import type { Appointment } from './types'
 
 function toLocalParts(iso: string): { date: string; time: string } {
@@ -45,7 +50,22 @@ export function AppointmentModal({
 
   const [book, { isLoading: booking, error: bookError }] = useBookAppointmentMutation()
   const [reschedule, { isLoading: moving, error: moveError }] = useRescheduleAppointmentMutation()
-  const error = bookError ?? moveError
+  const [findSlot, { isFetching: finding, error: slotError }] = useLazyNextFreeSlotQuery()
+  const error = bookError ?? moveError ?? slotError
+
+  async function onFindSlot() {
+    if (!clinicianId) return
+    const durationMs = new Date(`${date}T${endTime}:00`).getTime() - new Date(`${date}T${startTime}:00`).getTime()
+    const duration = Math.max(Math.round(durationMs / 60000), 15)
+    const result = await findSlot({ clinicianId, duration, day: date })
+    if (result.data) {
+      const start = toLocalParts(result.data.startAt)
+      const end = toLocalParts(result.data.endAt)
+      setDate(start.date)
+      setStartTime(start.time)
+      setEndTime(end.time)
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -124,6 +144,19 @@ export function AppointmentModal({
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
           />
+        </div>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!clinicianId || finding}
+            onClick={onFindSlot}
+            title="Jump to the clinician's first open slot of this length (searches up to two weeks)"
+          >
+            <i className="iconify tabler--wand" aria-hidden />
+            {finding ? 'Searching…' : 'Find next free slot'}
+          </Button>
         </div>
         <Input
           label="Reason (optional)"

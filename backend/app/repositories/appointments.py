@@ -38,6 +38,35 @@ class AppointmentRepository(Repository):
             stmt = stmt.where(models.Appointment.status == status)
         return self.paginate(stmt, limit, offset)
 
+    def between(
+        self, clinician_id: uuid.UUID | None, start: datetime, end: datetime
+    ) -> list[models.Appointment]:
+        stmt = (
+            select(models.Appointment)
+            .options(joinedload(models.Appointment.patient), joinedload(models.Appointment.clinician))
+            .where(models.Appointment.start_at >= start, models.Appointment.start_at < end)
+            .order_by(models.Appointment.start_at)
+            .limit(500)
+        )
+        if clinician_id is not None:
+            stmt = stmt.where(models.Appointment.clinician_id == clinician_id)
+        return list(self.db.scalars(stmt))
+
+    def booked_on_day(self, clinician_id: uuid.UUID, day: date) -> list[models.Appointment]:
+        start = datetime.combine(day, time.min).astimezone()
+        end = datetime.combine(day, time.max).astimezone()
+        stmt = (
+            select(models.Appointment)
+            .where(
+                models.Appointment.clinician_id == clinician_id,
+                models.Appointment.status == "booked",
+                models.Appointment.start_at >= start,
+                models.Appointment.start_at <= end,
+            )
+            .order_by(models.Appointment.start_at)
+        )
+        return list(self.db.scalars(stmt))
+
     def overlapping(
         self,
         clinician_id: uuid.UUID,
