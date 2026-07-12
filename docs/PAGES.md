@@ -151,6 +151,15 @@ Clinicians and administrators also see:
   and polypharmacy (5+ active medications) add explainable points to the
   patient's risk score, and all three lists export as FHIR resources
   (Condition, MedicationStatement, AllergyIntolerance) in the bundle.
+- **Vitals trends card** (`GET /api/patients/:id/observations/trends`) —
+  small-multiple line charts, one per measure with two or more recorded
+  values (heart rate, blood pressure, glucose, HbA1c, …), latest value in
+  each header. One measure per chart; never a dual axis.
+- **Imaging & documents card** (`GET/POST /api/patients/:id/attachments`) —
+  PNG/JPEG/PDF/DICOM uploads up to 10 MB, tagged *imaging* or *document*
+  with a description. Files preview inline (images and PDFs via an
+  authenticated blob fetch), download, and delete. Uploads, views and
+  removals are all audited and consent-gated.
 - **Timeline card** (`GET /api/patients/:id/timeline`, paginated) — one
   chronological stream, newest first, merging encounters (with observation
   counts and clinician), appointments (with status), and every
@@ -302,21 +311,27 @@ Cohort builder with export.
 
 Internal email-style messaging between staff.
 
-- **Tabs** — **Inbox** (with an unread count pill and an unread-only filter)
-  and **Sent**, both paginated (`GET /api/messages/inbox`, `/api/messages/sent`).
-  Unread rows show a dot and bold subject.
-- **New message** (`POST /api/messages`) — recipient picker listing every
-  staff member with their role, subject, body, and (for clinical/front-desk
-  roles) an optional **patient link** found by name or MRN. Sends are audited.
-- **Thread view** — clicking a row opens the conversation as chat-style
-  bubbles (yours right-aligned). Opening marks your unread messages in it
-  read. A linked patient shows as a badge that jumps to the record. The
+- **Tabs** — **Inbox** (unread count pill + unread-only filter), **Archived**
+  and **Sent**, all paginated (`GET /api/messages/inbox`, `?archived=true`,
+  `/api/messages/sent`). Unread rows show a dot and bold subject; rows with
+  attachments show a paperclip.
+- **New message** (`POST /api/messages`) — a checkbox picker selects **any
+  number of recipients** (each gets their own copy and conversation, like
+  BCC), subject, body, an optional **patient link** (clinical/front-desk
+  roles), and up to **three attachments** (PNG/JPEG/PDF/TXT/CSV, 5 MB each).
+  Sends are audited per recipient.
+- **Archive** — recipients can archive a message out of the inbox (and
+  restore it); the sender's view is unaffected and unread counts skip
+  archived mail.
+- **Thread view** — chat-style bubbles (yours right-aligned); opening marks
+  your unread messages read. A linked patient shows as a badge that jumps to
+  the record; attachments render as download chips (participants only). The
   **reply** box addresses the other participant automatically, prefixes
-  `Re:`, and keeps the reply in the same thread (replies inherit the
-  conversation and its patient link). Only participants can open a thread.
-- **Unread badges** — the sidebar Messages entry and a topbar mail icon show
-  the unread count, polled every 30 seconds
-  (`GET /api/messages/unread-count`).
+  `Re:`, and stays in the same thread (replies inherit the patient link).
+- **Live badges** — the sidebar Messages entry and topbar mail icon update
+  in real time: the app shell holds one SSE connection
+  (`GET /api/events/messages`) that signals when your mail state changes,
+  invalidating the message caches — no interval polling.
 
 ## Audit log — `/audit`
 
@@ -339,7 +354,8 @@ Recorded actions include: `patient.viewed / created / updated`,
 fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 `patient.fhir_exported`, `consent.updated`, `access.denied`,
 `report.exported`, `message.sent`, `problem.added / updated / removed`,
-`medication.added / updated / removed`, and `allergy.added / removed`.
+`medication.added / updated / removed`, `allergy.added / removed`, and
+`attachment.uploaded / viewed / removed`.
 
 ---
 
@@ -360,10 +376,31 @@ fhir`, `duplicates.scanned / dismissed`, `patients.merged`,
 
 ---
 
-## End-to-end tests
+## Sessions & security
 
-`frontend/e2e/` holds a Playwright suite (`npm run e2e`) covering login and
-registration, patient creation with search and validation, encounter
-observation range rejection, appointment booking/cancellation, cross-session
-messaging with reply, and per-role RBAC checks. It runs against the dev
-servers with the seeded database and reuses them when already running.
+Signing in returns a short-lived access token (kept client-side) while the
+refresh token lives only in an **httpOnly SameSite=Lax cookie** scoped to
+`/api/auth` — JavaScript never sees it. Every refresh **rotates** the token
+server-side; replaying a rotated token is treated as theft and revokes every
+session for that user. Logout revokes the token and clears the cookie.
+
+## Testing & tooling
+
+- **Backend:** `pytest` (45 tests) over the service layer on a dedicated test
+  database — ingestion mapping, risk rules, duplicates, consent, token
+  rotation, messaging — plus RBAC checks over HTTP. Run from `backend/` with
+  `.venv/bin/python -m pytest tests`.
+- **End-to-end:** `frontend/e2e/` holds a Playwright suite (`npm run e2e`, 15
+  tests) covering login/registration, patient creation and validation,
+  encounters, appointments, cross-session messaging with reply, archiving,
+  attachment upload/preview, trends, and per-role RBAC. It reuses running dev
+  servers and the seeded database.
+- **CI:** GitHub Actions runs backend tests, frontend lint/typecheck/build,
+  and the full e2e suite on every push/PR.
+- **Docker:** `docker compose up` brings up Postgres, the migrated API and an
+  nginx-served frontend build (seed with
+  `docker compose exec backend python seed.py`).
+- **Research evaluation:** `python -m evaluation.run` (from `backend/`)
+  regenerates [EVALUATION.md](EVALUATION.md) — duplicate-detection
+  precision/recall on synthetic corrupted feeds, and the explainable-rules vs
+  logistic-regression benchmark.
