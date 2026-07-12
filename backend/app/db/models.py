@@ -18,6 +18,11 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="clinician")
     # Profile photo as a small data URL (validated and size-capped on write).
     avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Deactivated accounts keep their history but cannot sign in or be picked.
+    active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    # Brute-force lockout state.
+    failed_logins: Mapped[int] = mapped_column(default=0, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

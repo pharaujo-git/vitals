@@ -16,6 +16,7 @@ from app.api.routers import (
     patients,
     reports,
     search,
+    users,
 )
 
 app = FastAPI(title="Vitals API", version="0.1.0")
@@ -35,6 +36,7 @@ app.include_router(messages.router, prefix="/api")
 app.include_router(clinical.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { to: '/import', label: 'Import', icon: 'tabler--database-import', roles: [] },
   { to: '/reports', label: 'Reports', icon: 'tabler--report-analytics', roles: ['manager'] },
   { to: '/audit', label: 'Audit log', icon: 'tabler--shield-search', roles: [] },
+  { to: '/users', label: 'Users', icon: 'tabler--user-cog', roles: [] },
 ]
 
 export function AppLayout() {

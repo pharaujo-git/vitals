@@ -29,10 +29,35 @@ def register(db: Session, email: str, password: str, display_name: str, role: st
     return repo.add(user)
 
 
+MAX_FAILED_LOGINS = 5
+LOCKOUT_MINUTES = 15
+
+
 def authenticate(db: Session, email: str, password: str) -> models.User:
     user = UserRepository(db).by_email(email.lower().strip())
-    if user is None or not security.verify_password(password, user.password_hash):
+    if user is None:
         raise ValueError("Invalid email or password")
+    now = datetime.now(timezone.utc)
+    if user.locked_until is not None and user.locked_until > now:
+        minutes = max(1, int((user.locked_until - now).total_seconds() // 60) + 1)
+        raise ValueError(f"Too many failed attempts; try again in {minutes} minutes")
+    if not security.verify_password(password, user.password_hash):
+        user.failed_logins += 1
+        if user.failed_logins >= MAX_FAILED_LOGINS:
+            user.locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+            user.failed_logins = 0
+            db.commit()
+            raise ValueError(
+                f"Too many failed attempts; account locked for {LOCKOUT_MINUTES} minutes"
+            )
+        db.commit()
+        raise ValueError("Invalid email or password")
+    if not user.active:
+        raise ValueError("This account has been deactivated")
+    if user.failed_logins or user.locked_until:
+        user.failed_logins = 0
+        user.locked_until = None
+        db.commit()
     return user
 
 

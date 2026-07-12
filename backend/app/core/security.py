@@ -84,6 +84,8 @@ def get_current_user(
     user = db.get(models.User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
+    if not user.active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
     return user
 
 

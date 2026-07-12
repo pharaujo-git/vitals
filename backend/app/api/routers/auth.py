@@ -48,8 +48,9 @@ def register(body: schemas.RegisterRequest, response: Response, db: Session = De
 def login(body: schemas.LoginRequest, response: Response, db: Session = Depends(get_db)):
     try:
         user = auth_service.authenticate(db, body.email, body.password)
-    except ValueError:
-        raise HTTPException(401, "Invalid email or password")
+    except ValueError as exc:
+        status = 429 if "Too many failed attempts" in str(exc) else 401
+        raise HTTPException(status, str(exc))
     return _auth_response(db, response, user)
 
 

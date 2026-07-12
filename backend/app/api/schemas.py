@@ -47,6 +47,27 @@ class ChangePasswordRequest(ApiModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class UserAdminOut(ApiModel):
+    id: uuid.UUID
+    email: str
+    display_name: str
+    role: str
+    active: bool
+    created_at: datetime
+
+
+class RoleInput(ApiModel):
+    role: str
+
+
+class ActiveInput(ApiModel):
+    active: bool
+
+
+class TempPasswordOut(ApiModel):
+    temp_password: str
+
+
 class RegisterRequest(ApiModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
