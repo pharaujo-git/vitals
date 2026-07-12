@@ -43,8 +43,9 @@ test('appointments week grid renders with clinician blocks', async ({ page }) =>
   await page.goto('/appointments')
   await page.getByRole('button', { name: 'week' }).click()
   await expect(page.getByRole('button', { name: 'This week' })).toBeVisible()
-  // Hour gutter and at least one appointment block from the seed.
+  // Hour gutter, and appointment blocks for a clinician the seed books.
   await expect(page.getByText('8:00', { exact: true })).toBeVisible()
+  await page.getByLabel('Clinician').selectOption({ label: 'Dr. Sarah Chen' })
   await expect(page.locator('[title*=":"]').first()).toBeVisible()
 })
 
