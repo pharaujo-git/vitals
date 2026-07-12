@@ -357,6 +357,34 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Reports ---
+
+
+class CohortRow(ApiModel):
+    """A cohort preview row; identifying fields are None for de-identified callers."""
+
+    patient_id: uuid.UUID
+    mrn: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    dob: str | None = None
+    age: int
+    sex: str
+    source: str
+    encounters: int
+    risk_score: int
+    risk_level: str
+    risk_reasons: str
+
+
+class CohortPreview(ApiModel):
+    items: list[CohortRow]
+    total: int
+    limit: int
+    offset: int
+    columns: list[str]
+
+
 # --- Audit ---
 
 
