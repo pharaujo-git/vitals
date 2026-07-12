@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -93,3 +93,24 @@ class Observation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
+
+
+class AuditLog(Base):
+    """Append-only trail of who viewed or changed sensitive data.
+
+    No update or delete path exists through the API; rows are only ever
+    inserted.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_email: Mapped[str] = mapped_column(String(255))
+    action: Mapped[str] = mapped_column(String(60), index=True)
+    entity_type: Mapped[str | None] = mapped_column(String(30))
+    entity_id: Mapped[str | None] = mapped_column(String(60), index=True)
+    detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )

@@ -222,3 +222,16 @@ class EncounterHit(ApiModel):
 class SearchResults(ApiModel):
     patients: list[PatientHit]
     encounters: list[EncounterHit]
+
+
+# --- Audit ---
+
+
+class AuditEntryOut(ApiModel):
+    id: uuid.UUID
+    user_email: str
+    action: str
+    entity_type: str | None
+    entity_id: str | None
+    detail: dict | None
+    created_at: datetime

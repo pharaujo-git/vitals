@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import schemas
+from app.core.audit import audit
 from app.core.security import get_current_user, require_roles
 from app.db import models
 from app.db.session import get_db
@@ -44,7 +45,7 @@ def list_appointments(
 def book_appointment(
     body: schemas.AppointmentInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_manage),
+    user: models.User = Depends(can_manage),
 ):
     try:
         appointment = appointment_service.book(
@@ -57,6 +58,8 @@ def book_appointment(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "appointment.booked", entity_type="appointment", entity_id=appointment.id,
+          detail={"patientId": str(body.patient_id)})
     return schemas.AppointmentOut.from_orm_appointment(appointment)
 
 
@@ -65,7 +68,7 @@ def reschedule_appointment(
     appointment_id: uuid.UUID,
     body: schemas.AppointmentInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_manage),
+    user: models.User = Depends(can_manage),
 ):
     appointment = AppointmentRepository(db).get(appointment_id)
     if appointment is None:
@@ -81,6 +84,7 @@ def reschedule_appointment(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "appointment.moved", entity_type="appointment", entity_id=appointment.id)
     return schemas.AppointmentOut.from_orm_appointment(appointment)
 
 
@@ -89,7 +93,7 @@ def set_appointment_status(
     appointment_id: uuid.UUID,
     body: schemas.AppointmentStatusInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_manage),
+    user: models.User = Depends(can_manage),
 ):
     appointment = AppointmentRepository(db).get(appointment_id)
     if appointment is None:
@@ -98,4 +102,5 @@ def set_appointment_status(
         appointment = appointment_service.set_status(db, appointment, body.status)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, f"appointment.{body.status}", entity_type="appointment", entity_id=appointment.id)
     return schemas.AppointmentOut.from_orm_appointment(appointment)

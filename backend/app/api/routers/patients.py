@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import schemas
+from app.core.audit import audit
 from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
@@ -32,10 +33,10 @@ def list_patients(
 def create_patient(
     body: schemas.PatientInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_edit),
+    user: models.User = Depends(can_edit),
 ):
     try:
-        return patient_service.create_patient(
+        patient = patient_service.create_patient(
             db,
             first_name=body.first_name,
             last_name=body.last_name,
@@ -49,17 +50,20 @@ def create_patient(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "patient.created", entity_type="patient", entity_id=patient.id)
+    return patient
 
 
 @router.get("/{patient_id}", response_model=schemas.PatientOut)
 def get_patient(
     patient_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_view),
+    user: models.User = Depends(can_view),
 ):
     patient = PatientRepository(db).get(patient_id)
     if patient is None:
         raise HTTPException(404, "Patient not found")
+    audit(db, user, "patient.viewed", entity_type="patient", entity_id=patient.id)
     return patient
 
 
@@ -68,13 +72,13 @@ def update_patient(
     patient_id: uuid.UUID,
     body: schemas.PatientInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_edit),
+    user: models.User = Depends(can_edit),
 ):
     patient = PatientRepository(db).get(patient_id)
     if patient is None:
         raise HTTPException(404, "Patient not found")
     try:
-        return patient_service.update_patient(
+        patient = patient_service.update_patient(
             db,
             patient,
             first_name=body.first_name,
@@ -88,3 +92,5 @@ def update_patient(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "patient.updated", entity_type="patient", entity_id=patient.id)
+    return patient

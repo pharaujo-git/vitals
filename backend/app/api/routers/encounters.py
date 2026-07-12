@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import schemas
+from app.core.audit import audit
 from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
@@ -28,9 +29,10 @@ def list_encounters(
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_view),
+    user: models.User = Depends(can_view),
 ):
     items, total = EncounterRepository(db).page_for_patient(patient_id, limit, offset)
+    audit(db, user, "encounters.viewed", entity_type="patient", entity_id=patient_id)
     return schemas.page([schemas.EncounterOut.from_orm_encounter(e) for e in items], total, limit, offset)
 
 
@@ -54,6 +56,8 @@ def create_encounter(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "encounter.created", entity_type="encounter", entity_id=encounter.id,
+          detail={"patientId": str(patient_id), "observations": len(encounter.observations)})
     return schemas.EncounterOut.from_orm_encounter(encounter)
 
 
@@ -62,7 +66,7 @@ def add_observation(
     encounter_id: uuid.UUID,
     body: schemas.ObservationInput,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_edit),
+    user: models.User = Depends(can_edit),
 ):
     encounter = EncounterRepository(db).get(encounter_id)
     if encounter is None:
@@ -78,4 +82,6 @@ def add_observation(
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    audit(db, user, "observation.added", entity_type="encounter", entity_id=encounter.id,
+          detail={"code": body.code})
     return schemas.EncounterOut.from_orm_encounter(encounter)
