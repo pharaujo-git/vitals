@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.repositories.appointments import AppointmentRepository
 from app.repositories.users import UserRepository
 from app.services import appointments as appointment_service
+from app.services.notifications import notify
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -94,7 +95,25 @@ def book_appointment(
         raise HTTPException(400, str(exc))
     audit(db, user, "appointment.booked", entity_type="appointment", entity_id=appointment.id,
           detail={"patientId": str(body.patient_id)})
+    _notify_clinician(db, user, appointment, "New appointment booked")
     return schemas.AppointmentOut.from_orm_appointment(appointment)
+
+
+def _notify_clinician(db: Session, actor: models.User, appointment, title: str) -> None:
+    """Tell the clinician when someone else changes their schedule."""
+    if appointment.clinician_id == actor.id:
+        return
+    when = appointment.start_at.strftime("%b %-d, %-I:%M %p")
+    patient = appointment.patient
+    notify(
+        db,
+        appointment.clinician_id,
+        "appointment",
+        title,
+        body=f"{patient.first_name} {patient.last_name} · {when}"
+             + (f" · {appointment.reason}" if appointment.reason else ""),
+        link="/appointments",
+    )
 
 
 @router.put("/{appointment_id}", response_model=schemas.AppointmentOut)
@@ -119,6 +138,7 @@ def reschedule_appointment(
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     audit(db, user, "appointment.moved", entity_type="appointment", entity_id=appointment.id)
+    _notify_clinician(db, user, appointment, "Appointment moved")
     return schemas.AppointmentOut.from_orm_appointment(appointment)
 
 
@@ -137,4 +157,6 @@ def set_appointment_status(
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     audit(db, user, f"appointment.{body.status}", entity_type="appointment", entity_id=appointment.id)
+    if body.status == "cancelled":
+        _notify_clinician(db, user, appointment, "Appointment cancelled")
     return schemas.AppointmentOut.from_orm_appointment(appointment)

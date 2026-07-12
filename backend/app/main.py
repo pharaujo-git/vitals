@@ -15,6 +15,7 @@ from app.api.routers import (
     fhir,
     imports,
     messages,
+    notifications,
     patients,
     reports,
     search,
@@ -42,6 +43,7 @@ app.include_router(clinical.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 
 @app.get("/api/health")

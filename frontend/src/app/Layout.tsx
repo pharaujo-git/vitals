@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from './hooks'
 import { useLogoutMutation } from '../features/auth/api'
 import { clearCredentials } from '../features/auth/authSlice'
 import { useUnreadCountQuery } from '../features/messages/api'
+import { NotificationsBell } from '../features/notifications/NotificationsBell'
 import { SearchBox } from '../features/search/SearchBox'
 import { baseApi } from '../shared/api/baseApi'
 import { roleLabels, type Role } from '../shared/api/types'
@@ -42,8 +43,9 @@ const navItems: NavItem[] = [
 
 export function AppLayout() {
   const user = useAppSelector((s) => s.auth.user)
-  // One SSE connection for the whole shell: new mail invalidates Message caches.
+  // Two SSE connections for the whole shell: mail and notification signals.
   useLiveUpdates('messages', ['Message'])
+  useLiveUpdates('notifications', ['Notification'])
   const [drawerOpen, setDrawerOpen] = useState(false)
   // Desktop-only: collapse the sidebar to an icon rail, persisted across reloads.
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vitals-sidenav') === 'collapsed')
@@ -253,6 +255,7 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
       </div>
 
       <div className="flex items-center gap-1.5">
+        <NotificationsBell />
         <TopbarMail />
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

@@ -13,7 +13,9 @@ from app.repositories.observations import ObservationRepository
 from app.repositories.patients import PatientRepository
 from app.services import consent as consent_service
 from app.services import encounters as encounter_service
+from app.services import risk as risk_service
 from app.services.consent import ConsentError
+from app.services.notifications import notify
 from app.services.observations import CATALOG
 
 router = APIRouter(tags=["encounters"])
@@ -95,7 +97,27 @@ def create_encounter(
         raise HTTPException(400, str(exc))
     audit(db, user, "encounter.created", entity_type="encounter", entity_id=encounter.id,
           detail={"patientId": str(patient_id), "observations": len(encounter.observations)})
+    _alert_if_high_risk(db, user, patient_id)
     return schemas.EncounterOut.from_orm_encounter(encounter)
+
+
+def _alert_if_high_risk(db: Session, user: models.User, patient_id: uuid.UUID) -> None:
+    """After new observations land, alert the author if the patient now
+    scores in the high-risk band."""
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        return
+    score, level, reasons = risk_service.score_patient(db, patient)
+    if level != "high":
+        return
+    notify(
+        db,
+        user.id,
+        "risk",
+        f"High risk: {patient.first_name} {patient.last_name} (score {score})",
+        body="; ".join(reasons[:3]),
+        link=f"/patients/{patient.id}",
+    )
 
 
 @router.post("/encounters/{encounter_id}/observations", response_model=schemas.EncounterOut)
@@ -122,4 +144,5 @@ def add_observation(
         raise HTTPException(400, str(exc))
     audit(db, user, "observation.added", entity_type="encounter", entity_id=encounter.id,
           detail={"code": body.code})
+    _alert_if_high_risk(db, user, encounter.patient_id)
     return schemas.EncounterOut.from_orm_encounter(encounter)

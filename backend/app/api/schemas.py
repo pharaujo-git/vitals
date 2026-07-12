@@ -563,6 +563,19 @@ class UnreadCount(ApiModel):
     count: int
 
 
+# --- Notifications ---
+
+
+class NotificationOut(ApiModel):
+    id: uuid.UUID
+    kind: str
+    title: str
+    body: str | None
+    link: str | None
+    read_at: datetime | None
+    created_at: datetime
+
+
 # --- Reports ---
 
 

@@ -126,6 +126,38 @@ def _score_history(
     return score, reasons
 
 
+def score_patient(db: Session, patient: models.Patient) -> tuple[int, str, list[str]]:
+    """Score one patient (same rules as the population sweep). Returns
+    (score, level, reasons) where level is none/moderate/high."""
+    latest: dict[str, float] = {}
+    observations = db.scalars(
+        select(models.Observation)
+        .where(
+            models.Observation.patient_id == patient.id,
+            models.Observation.value_num.is_not(None),
+        )
+        .order_by(models.Observation.taken_at)
+    )
+    for obs in observations:
+        latest[obs.code] = float(obs.value_num)
+
+    score, reasons = _score_rules(_age(patient.dob), latest)
+    problems = list(db.scalars(select(models.Problem).where(models.Problem.patient_id == patient.id)))
+    medications = list(
+        db.scalars(select(models.Medication).where(models.Medication.patient_id == patient.id))
+    )
+    history_score, history_reasons = _score_history(problems, medications)
+    score += history_score
+    reasons.extend(history_reasons)
+
+    level = "none"
+    if score >= HIGH_THRESHOLD:
+        level = "high"
+    elif score >= FLAG_THRESHOLD:
+        level = "moderate"
+    return score, level, reasons
+
+
 def compute_flags(db: Session) -> list[RiskFlag]:
     """Score every active patient; returns flags at or above the threshold,
     highest risk first."""

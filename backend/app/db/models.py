@@ -108,6 +108,23 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class Notification(Base):
+    """In-app notification: appointment changes, risk alerts, and the like."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(40))  # appointment | risk | ...
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str | None] = mapped_column(String(500))
+    link: Mapped[str | None] = mapped_column(String(255))
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class PasswordResetToken(Base):
     """Single-use, short-lived token for the forgot-password flow. In dev the
     reset link is written to the server log instead of an email."""
