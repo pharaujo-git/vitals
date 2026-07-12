@@ -149,14 +149,13 @@ function PasswordCard() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (mismatch) return
+    setDone(false) // hide any previous success note until THIS change lands
     const result = await change({ currentPassword, newPassword })
     if (!('error' in result)) {
       setCurrentPassword('')
       setNewPassword('')
       setConfirm('')
       setDone(true)
-    } else {
-      setDone(false)
     }
   }
 
