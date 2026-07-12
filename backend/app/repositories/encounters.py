@@ -30,6 +30,19 @@ class EncounterRepository(Repository):
         )
         return self.paginate(stmt, limit, offset)
 
+    def search(self, query: str, limit: int = 8) -> list[models.Encounter]:
+        like = f"%{query.strip()}%"
+        stmt = (
+            select(models.Encounter)
+            .options(joinedload(models.Encounter.patient))
+            .where(
+                (models.Encounter.reason.ilike(like)) | (models.Encounter.notes.ilike(like))
+            )
+            .order_by(models.Encounter.occurred_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt))
+
     def add(self, encounter: models.Encounter) -> models.Encounter:
         self.db.add(encounter)
         self.db.commit()

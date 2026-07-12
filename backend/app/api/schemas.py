@@ -198,3 +198,27 @@ class ObservationTypeOut(ApiModel):
     unit: str | None
     min_value: float | None
     max_value: float | None
+
+
+# --- Search ---
+
+
+class PatientHit(ApiModel):
+    id: uuid.UUID
+    mrn: str
+    first_name: str
+    last_name: str
+    dob: date
+
+
+class EncounterHit(ApiModel):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    patient_name: str
+    reason: str | None
+    occurred_at: datetime
+
+
+class SearchResults(ApiModel):
+    patients: list[PatientHit]
+    encounters: list[EncounterHit]

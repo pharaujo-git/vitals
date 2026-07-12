@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './hooks'
 import { clearCredentials } from '../features/auth/authSlice'
+import { SearchBox } from '../features/search/SearchBox'
 import { baseApi } from '../shared/api/baseApi'
 import { roleLabels, type Role } from '../shared/api/types'
 import { setTheme, useTheme } from '../shared/lib/theme'
@@ -184,6 +185,10 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
       >
         <i className="iconify tabler--menu-2 text-xl" aria-hidden />
       </button>
+
+      <div className="flex flex-1 justify-center px-2">
+        <SearchBox />
+      </div>
 
       <div className="flex items-center gap-1.5">
         <button
