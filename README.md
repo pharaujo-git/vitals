@@ -1,5 +1,7 @@
 # Vitals
 
+[![CI](https://github.com/pharaujo-git/vitals/actions/workflows/ci.yml/badge.svg)](https://github.com/pharaujo-git/vitals/actions/workflows/ci.yml)
+
 A health information system with clinical data integration and light analytics:
 patient records, appointments and clinical observations, consolidated across
 several source formats (CSV, HL7-style messages, FHIR) into one store, with a
