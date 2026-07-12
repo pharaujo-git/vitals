@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ClinicalListsCard } from '../clinical/ClinicalListsCard'
 import { TimelineCard } from '../timeline/TimelineCard'
+import { TrendsCard } from '../trends/TrendsCard'
 import { ConsolidatedCard } from '../duplicates/ConsolidatedCard'
 import { EncountersCard } from '../encounters/EncountersCard'
 import { useLazyExportFhirQuery } from '../fhir/api'
@@ -124,7 +125,8 @@ export function PatientDetailPage() {
         )}
 
         {canEdit && (
-          <div className="mt-4">
+          <div className="mt-4 space-y-4">
+            <TrendsCard patientId={patient.id} />
             <TimelineCard patientId={patient.id} />
           </div>
         )}

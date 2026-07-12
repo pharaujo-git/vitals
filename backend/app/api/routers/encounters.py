@@ -9,6 +9,7 @@ from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
 from app.repositories.encounters import EncounterRepository
+from app.repositories.observations import ObservationRepository
 from app.repositories.patients import PatientRepository
 from app.services import consent as consent_service
 from app.services import encounters as encounter_service
@@ -48,6 +49,27 @@ def list_encounters(
     items, total = EncounterRepository(db).page_for_patient(patient_id, limit, offset)
     audit(db, user, "encounters.viewed", entity_type="patient", entity_id=patient_id)
     return schemas.page([schemas.EncounterOut.from_orm_encounter(e) for e in items], total, limit, offset)
+
+
+@router.get("/patients/{patient_id}/observations/trends", response_model=list[schemas.TrendSeries])
+def observation_trends(
+    patient_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(can_view),
+):
+    """Numeric observations grouped into per-code time series, catalog order."""
+    _ensure_patient_access(db, user, patient_id)
+    observations = ObservationRepository(db).numeric_series(patient_id)
+    by_code: dict[str, list] = {}
+    for obs in observations:
+        by_code.setdefault(obs.code, []).append(
+            schemas.TrendPoint(taken_at=obs.taken_at, value=obs.value_num)
+        )
+    return [
+        schemas.TrendSeries(code=code, label=obs_type.label, unit=obs_type.unit, points=by_code[code])
+        for code, obs_type in CATALOG.items()
+        if code in by_code and len(by_code[code]) >= 2
+    ]
 
 
 @router.post("/patients/{patient_id}/encounters", response_model=schemas.EncounterOut, status_code=201)

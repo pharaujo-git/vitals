@@ -7,6 +7,18 @@ from app.repositories import Repository
 
 
 class ObservationRepository(Repository):
+    def numeric_series(self, patient_id: uuid.UUID, limit: int = 2000) -> list[models.Observation]:
+        stmt = (
+            select(models.Observation)
+            .where(
+                models.Observation.patient_id == patient_id,
+                models.Observation.value_num.is_not(None),
+            )
+            .order_by(models.Observation.taken_at)
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt))
+
     def for_patient(self, patient_id: uuid.UUID, limit: int = 1000) -> list[models.Observation]:
         stmt = (
             select(models.Observation)

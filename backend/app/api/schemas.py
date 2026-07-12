@@ -357,6 +357,21 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Observation trends ---
+
+
+class TrendPoint(ApiModel):
+    taken_at: datetime
+    value: float
+
+
+class TrendSeries(ApiModel):
+    code: str
+    label: str
+    unit: str | None
+    points: list[TrendPoint]
+
+
 # --- Timeline ---
 
 
