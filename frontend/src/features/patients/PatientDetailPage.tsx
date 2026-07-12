@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ConsolidatedCard } from '../duplicates/ConsolidatedCard'
 import { EncountersCard } from '../encounters/EncountersCard'
+import { useLazyExportFhirQuery } from '../fhir/api'
 import { useHasRole } from '../../shared/hooks/useRole'
 import { ageFromDob, formatDate } from '../../shared/lib/format'
 import { Button } from '../../shared/ui/Button'
@@ -39,6 +40,20 @@ export function PatientDetailPage() {
   const { data: patient, isLoading, error } = usePatientQuery(id!)
   const [editing, setEditing] = useState(false)
   const canEdit = useHasRole('clinician')
+  const [exportFhir, { isFetching: exporting }] = useLazyExportFhirQuery()
+
+  async function onExportFhir() {
+    if (!patient) return
+    const result = await exportFhir(patient.id)
+    if (!result.data) return
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/fhir+json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${patient.mrn}-fhir-bundle.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   if (isLoading) return <Spinner />
   if (error !== undefined || !patient) {
@@ -56,6 +71,12 @@ export function PatientDetailPage() {
         actions={
           <div className="flex items-center gap-2">
             <SourceBadge source={patient.source} />
+            {canEdit && (
+              <Button size="sm" variant="secondary" onClick={onExportFhir} disabled={exporting}>
+                <i className="iconify tabler--file-export" aria-hidden />
+                {exporting ? 'Exporting…' : 'Export FHIR'}
+              </Button>
+            )}
             {canEdit && (
               <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
                 <i className="iconify tabler--pencil" aria-hidden /> Edit

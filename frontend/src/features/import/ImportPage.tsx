@@ -7,6 +7,7 @@ import { Input, Label, Textarea } from '../../shared/ui/Field'
 import { Modal } from '../../shared/ui/Modal'
 import { Card, EmptyState, ErrorNote, PageBody, PageHeader, Spinner } from '../../shared/ui/Page'
 import { Pagination } from '../../shared/ui/Pagination'
+import { FhirImportCard } from '../fhir/FhirImportCard'
 import {
   useImportBatchesQuery,
   useImportCsvMutation,
@@ -212,6 +213,7 @@ export function ImportPage() {
         <div className="mb-4 grid gap-4 lg:grid-cols-2">
           <CsvImportCard />
           <Hl7ImportCard />
+          <FhirImportCard />
         </div>
 
         <Card title="Import history" flush>

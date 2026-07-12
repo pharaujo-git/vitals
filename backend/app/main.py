@@ -6,6 +6,7 @@ from app.api.routers import (
     auth,
     duplicates,
     encounters,
+    fhir,
     imports,
     patients,
     search,
@@ -21,6 +22,7 @@ app.include_router(search.router, prefix="/api")
 app.include_router(audit.router, prefix="/api")
 app.include_router(imports.router, prefix="/api")
 app.include_router(duplicates.router, prefix="/api")
+app.include_router(fhir.router, prefix="/api")
 
 
 @app.get("/api/health")
