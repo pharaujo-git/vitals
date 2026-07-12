@@ -12,6 +12,7 @@ from app.repositories.patients import PatientRepository
 from app.services import consent as consent_service
 from app.services import duplicates as duplicate_service
 from app.services import patients as patient_service
+from app.services import risk as risk_service
 from app.services import timeline as timeline_service
 from app.services.consent import ConsentError
 
@@ -25,13 +26,20 @@ can_manage_consent = require_roles()
 @router.get("", response_model=schemas.Page[schemas.PatientOut])
 def list_patients(
     search: str | None = None,
+    sort: str = Query("name", pattern="^(name|dob|newest)$"),
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _: models.User = Depends(can_view),
 ):
-    items, total = PatientRepository(db).page(search, limit, offset)
-    return schemas.page(items, total, limit, offset)
+    items, total = PatientRepository(db).page(search, limit, offset, sort)
+    levels = {flag.patient.id: flag.level for flag in risk_service.compute_flags(db)}
+    rows = []
+    for patient in items:
+        row = schemas.PatientOut.model_validate(patient)
+        row.risk_level = levels.get(patient.id, "none")
+        rows.append(row)
+    return schemas.page(rows, total, limit, offset)
 
 
 @router.post("", response_model=schemas.PatientOut, status_code=201)

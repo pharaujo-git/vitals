@@ -5,7 +5,7 @@ import { useHasRole } from '../../shared/hooks/useRole'
 import { ageFromDob, formatDate } from '../../shared/lib/format'
 import { Badge } from '../../shared/ui/Badge'
 import { Button } from '../../shared/ui/Button'
-import { Input } from '../../shared/ui/Field'
+import { Input, Select } from '../../shared/ui/Field'
 import { Card, EmptyState, PageBody, PageHeader, Spinner } from '../../shared/ui/Page'
 import { Pagination } from '../../shared/ui/Pagination'
 import { usePatientsQuery } from './api'
@@ -27,11 +27,15 @@ export function SourceBadge({ source }: { source: string }) {
   )
 }
 
+const riskTones = { high: 'red', moderate: 'amber', none: 'muted' } as const
+
 export function PatientsPage() {
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<'name' | 'dob' | 'newest'>('name')
   const { limit, offset, setPage, reset } = usePagination()
   const { data, isLoading, isFetching } = usePatientsQuery({
     search: search || undefined,
+    sort,
     limit,
     offset,
   })
@@ -53,15 +57,33 @@ export function PatientsPage() {
       />
       <PageBody>
         <Card className="mb-4">
-          <Input
-            icon="tabler--search"
-            placeholder="Search by name or identifier…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              reset()
-            }}
-          />
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-52 flex-1">
+              <Input
+                icon="tabler--search"
+                placeholder="Search by name, identifier, phone or email…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  reset()
+                }}
+              />
+            </div>
+            <div className="w-44">
+              <Select
+                value={sort}
+                onChange={(e) => {
+                  setSort(e.target.value as typeof sort)
+                  reset()
+                }}
+                aria-label="Sort"
+              >
+                <option value="name">Sort: Name</option>
+                <option value="dob">Sort: Date of birth</option>
+                <option value="newest">Sort: Newest first</option>
+              </Select>
+            </div>
+          </div>
         </Card>
 
         {isLoading && <Spinner />}
@@ -79,6 +101,7 @@ export function PatientsPage() {
                     <th className="px-5 py-2.5">Date of birth</th>
                     <th className="px-5 py-2.5">Sex</th>
                     <th className="px-5 py-2.5">Phone</th>
+                    <th className="px-5 py-2.5">Risk</th>
                     <th className="px-5 py-2.5">Source</th>
                   </tr>
                 </thead>
@@ -103,6 +126,13 @@ export function PatientsPage() {
                       </td>
                       <td className="text-ink-muted px-5 py-2.5 capitalize">{p.sex}</td>
                       <td className="text-ink-muted px-5 py-2.5">{p.phone ?? '—'}</td>
+                      <td className="px-5 py-2.5">
+                        {p.riskLevel && p.riskLevel !== 'none' ? (
+                          <Badge tone={riskTones[p.riskLevel]}>{p.riskLevel}</Badge>
+                        ) : (
+                          <span className="text-ink-faint">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-2.5">
                         <SourceBadge source={p.source} />
                       </td>

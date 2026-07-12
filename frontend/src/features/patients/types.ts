@@ -15,6 +15,7 @@ export interface Patient {
   restricted: boolean
   createdAt: string
   updatedAt: string
+  riskLevel?: 'none' | 'moderate' | 'high' | null
 }
 
 export interface ConsentGrant {
@@ -42,6 +43,7 @@ export interface PatientInput {
 
 export interface PatientFilters {
   search?: string
+  sort?: 'name' | 'dob' | 'newest'
   limit?: number
   offset?: number
 }

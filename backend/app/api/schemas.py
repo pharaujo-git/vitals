@@ -124,6 +124,8 @@ class PatientOut(ApiModel):
     restricted: bool
     created_at: datetime
     updated_at: datetime
+    # Present on list responses only (computed per request by the risk engine).
+    risk_level: str | None = None
 
 
 class ConsentGrantInput(ApiModel):
