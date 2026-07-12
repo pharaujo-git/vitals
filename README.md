@@ -7,6 +7,17 @@ population dashboard and explainable risk flags on top.
 
 All sample data is synthetic — no real patient data is used anywhere.
 
+![Population dashboard](docs/screenshots/dashboard-light.png)
+
+<details>
+<summary>More screenshots: dark mode, patient record, week calendar</summary>
+
+![Dashboard in dark mode](docs/screenshots/dashboard-dark.png)
+![Patient record](docs/screenshots/patient-record.png)
+![Week calendar](docs/screenshots/appointments-week.png)
+
+</details>
+
 ## Stack
 
 - **Backend:** Python, FastAPI, SQLAlchemy 2 + Alembic on PostgreSQL,
@@ -45,7 +56,8 @@ All sample data is synthetic — no real patient data is used anywhere.
 | + | Reproducible research evaluation — see [docs/EVALUATION.md](docs/EVALUATION.md) |
 
 A detailed walkthrough of every page — what it shows, who can open it, and the
-endpoints behind it — lives in [docs/PAGES.md](docs/PAGES.md).
+endpoints behind it — lives in [docs/PAGES.md](docs/PAGES.md); the layering and
+entity-relationship diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Getting started
 
