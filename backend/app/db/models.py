@@ -101,6 +101,24 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class RefreshToken(Base):
+    """Server-side state for refresh tokens: rotation chain + revocation.
+
+    Each JWT refresh token carries this row's id as its jti. Rotation marks
+    the old row revoked and records its successor; presenting a revoked
+    token again is treated as theft and revokes the whole family.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    replaced_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Attachment(Base):
     """Imaging or document file attached to a patient record (stored inline)."""
 

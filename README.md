@@ -52,7 +52,7 @@ python3 -m venv .venv
 cp .env.example .env        # then set a random JWT_SECRET
 .venv/bin/alembic upgrade head
 .venv/bin/python seed.py    # synthetic demo data (--fresh to wipe first)
-.venv/bin/uvicorn app.main:app --port 8000 --reload
+.venv/bin/uvicorn app.main:app --port 8000 --reload --timeout-graceful-shutdown 3
 
 # Frontend (second terminal)
 cd frontend

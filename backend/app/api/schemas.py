@@ -48,13 +48,8 @@ class LoginRequest(ApiModel):
     password: str
 
 
-class RefreshRequest(ApiModel):
-    refresh_token: str
-
-
 class AuthResponse(ApiModel):
     access_token: str
-    refresh_token: str
     user: UserOut
 
 

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60
     refresh_token_days: int = 7
+    # Set true behind HTTPS so the refresh cookie is Secure.
+    cookie_secure: bool = False
 
 
 @lru_cache

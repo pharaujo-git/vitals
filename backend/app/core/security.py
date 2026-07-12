@@ -25,32 +25,53 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def _create_token(user_id: uuid.UUID, token_type: str, lifetime: timedelta) -> str:
+def _create_token(
+    user_id: uuid.UUID, token_type: str, lifetime: timedelta, jti: uuid.UUID | None = None
+) -> str:
     settings = get_settings()
     payload = {
         "sub": str(user_id),
         "type": token_type,
         "exp": datetime.now(timezone.utc) + lifetime,
     }
+    if jti is not None:
+        payload["jti"] = str(jti)
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_token_pair(user: models.User) -> tuple[str, str]:
+def create_access_token(user: models.User) -> str:
     settings = get_settings()
-    access = _create_token(user.id, "access", timedelta(minutes=settings.access_token_minutes))
-    refresh = _create_token(user.id, "refresh", timedelta(days=settings.refresh_token_days))
-    return access, refresh
+    return _create_token(user.id, "access", timedelta(minutes=settings.access_token_minutes))
+
+
+def create_refresh_token(user_id: uuid.UUID, jti: uuid.UUID) -> str:
+    settings = get_settings()
+    return _create_token(
+        user_id, "refresh", timedelta(days=settings.refresh_token_days), jti=jti
+    )
+
+
+def _decode(token: str) -> dict:
+    settings = get_settings()
+    try:
+        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
 
 
 def decode_token(token: str, expected_type: str) -> uuid.UUID:
-    settings = get_settings()
-    try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-    except JWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    payload = _decode(token)
     if payload.get("type") != expected_type:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
     return uuid.UUID(payload["sub"])
+
+
+def decode_refresh_token(token: str) -> tuple[uuid.UUID, uuid.UUID]:
+    """Returns (user_id, jti) from a refresh token."""
+    payload = _decode(token)
+    if payload.get("type") != "refresh" or "jti" not in payload:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
+    return uuid.UUID(payload["sub"]), uuid.UUID(payload["jti"])
 
 
 def get_current_user(

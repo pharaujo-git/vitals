@@ -16,12 +16,15 @@ export async function loginAs(page: Page, email: string) {
     data: { email, password: PASSWORD },
   })
   if (!response.ok()) throw new Error(`Login failed for ${email}: ${response.status()}`)
-  const auth = await response.json()
+  const auth = (await response.json()) as {
+    accessToken: string
+    user: { id: string; displayName: string }
+  }
   await api.dispose()
   await page.addInitScript((state) => {
     localStorage.setItem('vitals-auth', JSON.stringify(state))
-  }, auth)
-  return auth as { user: { id: string; displayName: string } }
+  }, { user: auth.user, accessToken: auth.accessToken })
+  return auth
 }
 
 export function unique(prefix: string): string {

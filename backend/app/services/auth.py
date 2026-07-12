@@ -1,6 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.core import security
+from app.core.config import get_settings
 from app.db import models
 from app.repositories.users import UserRepository
 
@@ -28,3 +32,67 @@ def authenticate(db: Session, email: str, password: str) -> models.User:
     if user is None or not security.verify_password(password, user.password_hash):
         raise ValueError("Invalid email or password")
     return user
+
+
+# --- Refresh-token rotation ---
+
+
+def issue_refresh_token(db: Session, user: models.User) -> str:
+    """Mint a refresh token with server-side state for rotation/revocation."""
+    row = models.RefreshToken(
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(days=get_settings().refresh_token_days),
+    )
+    db.add(row)
+    db.commit()
+    return security.create_refresh_token(user.id, row.id)
+
+
+def rotate_refresh_token(db: Session, token: str) -> tuple[models.User, str]:
+    """Validate + rotate. A revoked token presented again means theft: the
+    user's every refresh token is revoked and they must sign in again."""
+    user_id, jti = security.decode_refresh_token(token)
+    row = db.get(models.RefreshToken, jti)
+    now = datetime.now(timezone.utc)
+    if row is None or row.user_id != user_id:
+        raise ValueError("Unknown refresh token")
+    if row.revoked_at is not None:
+        if row.replaced_by is None:
+            # Plain revocation (logout) — nothing suspicious.
+            raise ValueError("Session ended; sign in again")
+        # A rotated token came back: treat as theft and kill the whole family.
+        db.execute(
+            update(models.RefreshToken)
+            .where(models.RefreshToken.user_id == user_id,
+                   models.RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
+        db.commit()
+        raise ValueError("Refresh token reuse detected; all sessions revoked")
+    if row.expires_at < now:
+        raise ValueError("Refresh token expired")
+
+    user = UserRepository(db).get(user_id)
+    if user is None:
+        raise ValueError("User no longer exists")
+
+    new_row = models.RefreshToken(user_id=user.id, expires_at=now + timedelta(
+        days=get_settings().refresh_token_days))
+    db.add(new_row)
+    db.flush()
+    row.revoked_at = now
+    row.replaced_by = new_row.id
+    db.commit()
+    return user, security.create_refresh_token(user.id, new_row.id)
+
+
+def revoke_refresh_token(db: Session, token: str) -> None:
+    try:
+        user_id, jti = security.decode_refresh_token(token)
+    except Exception:
+        return  # logout is best-effort; an invalid cookie is already useless
+    row = db.get(models.RefreshToken, jti)
+    if row is not None and row.user_id == user_id and row.revoked_at is None:
+        row.revoked_at = datetime.now(timezone.utc)
+        db.commit()

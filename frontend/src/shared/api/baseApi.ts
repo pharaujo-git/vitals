@@ -4,7 +4,7 @@ import { clearCredentials, setCredentials } from '../../features/auth/authSlice'
 import type { AuthResponse } from './types'
 
 interface StateWithAuth {
-  auth: { accessToken: string | null; refreshToken: string | null }
+  auth: { accessToken: string | null }
 }
 
 const rawBaseQuery = fetchBaseQuery({
@@ -27,18 +27,9 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   let result = await rawBaseQuery(args, api, extraOptions)
 
   if (result.error?.status === 401) {
-    const { refreshToken } = (api.getState() as StateWithAuth).auth
-    if (!refreshToken) {
-      api.dispatch(clearCredentials())
-      return result
-    }
-
+    // The refresh token rides an httpOnly cookie; just call the endpoint.
     refreshPromise ??= Promise.resolve(
-      rawBaseQuery(
-        { url: '/auth/refresh', method: 'POST', body: { refreshToken } },
-        api,
-        extraOptions,
-      ),
+      rawBaseQuery({ url: '/auth/refresh', method: 'POST' }, api, extraOptions),
     )
       .then((r) => (r.data as AuthResponse | undefined) ?? null)
       .finally(() => {

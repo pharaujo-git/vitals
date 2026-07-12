@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './hooks'
+import { useLogoutMutation } from '../features/auth/api'
 import { clearCredentials } from '../features/auth/authSlice'
 import { useUnreadCountQuery } from '../features/messages/api'
 import { SearchBox } from '../features/search/SearchBox'
@@ -216,7 +217,10 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
     return () => document.removeEventListener('mousedown', onClick)
   }, [menuOpen])
 
+  const [serverLogout] = useLogoutMutation()
+
   function logout() {
+    serverLogout() // revoke the refresh token + clear the cookie server-side
     dispatch(clearCredentials())
     dispatch(baseApi.util.resetApiState())
   }
