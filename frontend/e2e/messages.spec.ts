@@ -10,7 +10,7 @@ test('clinician sends a message; front desk reads it and replies', async ({ brow
   await loginAs(clinicianPage, accounts.clinician)
   await clinicianPage.goto('/messages')
   await clinicianPage.getByRole('button', { name: 'New message' }).click()
-  await clinicianPage.getByLabel('To', { exact: true }).selectOption({ label: 'Fran Alvarez — Front desk' })
+  await clinicianPage.getByRole('checkbox', { name: /Fran Alvarez/ }).check()
   await clinicianPage.getByLabel('Subject').fill(subject)
   await clinicianPage.getByLabel('Message', { exact: true }).fill('Can you cover reception at noon?')
   await clinicianPage.getByRole('button', { name: 'Send' }).click()

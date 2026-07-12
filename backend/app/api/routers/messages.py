@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.api import schemas
@@ -34,12 +34,13 @@ def unread_count(
 @router.get("/inbox", response_model=schemas.Page[schemas.MessageOut])
 def inbox(
     unread: bool = False,
+    archived: bool = False,
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    items, total = MessageRepository(db).inbox(user.id, unread, limit, offset)
+    items, total = MessageRepository(db).inbox(user.id, unread, archived, limit, offset)
     return schemas.page([schemas.MessageOut.from_orm_message(m) for m in items], total, limit, offset)
 
 
@@ -54,28 +55,77 @@ def sent(
     return schemas.page([schemas.MessageOut.from_orm_message(m) for m in items], total, limit, offset)
 
 
-@router.post("", response_model=schemas.MessageOut, status_code=201)
+@router.post("", response_model=list[schemas.MessageOut], status_code=201)
 def send_message(
     body: schemas.MessageInput,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
     try:
-        message = message_service.send(
+        messages = message_service.send(
             db,
             user,
-            recipient_id=body.recipient_id,
+            recipient_ids=body.recipient_ids,
             subject=body.subject,
             body=body.body,
             patient_id=body.patient_id,
             parent_id=body.parent_id,
+            attachments=[a.model_dump() for a in body.attachments],
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    audit(db, user, "message.sent", entity_type="message", entity_id=message.id,
-          detail={"recipientId": str(body.recipient_id),
-                  **({"patientId": str(message.patient_id)} if message.patient_id else {})})
-    return schemas.MessageOut.from_orm_message(message)
+    for message in messages:
+        audit(db, user, "message.sent", entity_type="message", entity_id=message.id,
+              detail={"recipientId": str(message.recipient_id),
+                      **({"patientId": str(message.patient_id)} if message.patient_id else {}),
+                      **({"attachments": len(message.attachments)} if message.attachments else {})})
+    return [schemas.MessageOut.from_orm_message(m) for m in messages]
+
+
+@router.post("/{message_id}/archive", status_code=204)
+def archive_message(
+    message_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    _set_archived(db, user, message_id, True)
+
+
+@router.post("/{message_id}/unarchive", status_code=204)
+def unarchive_message(
+    message_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    _set_archived(db, user, message_id, False)
+
+
+def _set_archived(db: Session, user: models.User, message_id: uuid.UUID, archived: bool) -> None:
+    message = MessageRepository(db).get(message_id)
+    if message is None:
+        raise HTTPException(404, "Message not found")
+    try:
+        message_service.set_archived(db, user, message, archived)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc))
+
+
+@router.get("/attachments/{attachment_id}/content")
+def message_attachment_content(
+    attachment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    attachment = MessageRepository(db).get_attachment(attachment_id)
+    if attachment is None:
+        raise HTTPException(404, "Attachment not found")
+    if user.id not in (attachment.message.sender_id, attachment.message.recipient_id):
+        raise HTTPException(403, "You are not part of that conversation")
+    return Response(
+        attachment.data,
+        media_type=attachment.content_type,
+        headers={"Content-Disposition": f'inline; filename="{attachment.filename}"'},
+    )
 
 
 @router.get("/{message_id}/thread", response_model=list[schemas.MessageOut])

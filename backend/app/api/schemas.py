@@ -454,12 +454,26 @@ class ClinicalListsOut(ApiModel):
 # --- Messages ---
 
 
+class MessageAttachmentInput(ApiModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str
+    data_base64: str
+
+
+class MessageAttachmentOut(ApiModel):
+    id: uuid.UUID
+    filename: str
+    content_type: str
+    size: int
+
+
 class MessageInput(ApiModel):
-    recipient_id: uuid.UUID
+    recipient_ids: list[uuid.UUID] = Field(min_length=1, max_length=20)
     subject: str = Field(min_length=1, max_length=255)
     body: str = Field(min_length=1)
     patient_id: uuid.UUID | None = None
     parent_id: uuid.UUID | None = None
+    attachments: list[MessageAttachmentInput] = []
 
 
 class MessageOut(ApiModel):
@@ -474,7 +488,9 @@ class MessageOut(ApiModel):
     subject: str
     body: str
     read_at: datetime | None
+    archived_at: datetime | None
     created_at: datetime
+    attachments: list[MessageAttachmentOut]
 
     @classmethod
     def from_orm_message(cls, m) -> "MessageOut":
@@ -490,7 +506,9 @@ class MessageOut(ApiModel):
             subject=m.subject,
             body=m.body,
             read_at=m.read_at,
+            archived_at=m.archived_at,
             created_at=m.created_at,
+            attachments=[MessageAttachmentOut.model_validate(a) for a in m.attachments],
         )
 
 

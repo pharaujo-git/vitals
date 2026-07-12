@@ -176,11 +176,29 @@ class Message(Base):
     subject: Mapped[str] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Recipient-side archive: hidden from the inbox, kept in the Archived folder.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
     recipient: Mapped["User"] = relationship(foreign_keys=[recipient_id])
     patient: Mapped["Patient | None"] = relationship()
+    attachments: Mapped[list["MessageAttachment"]] = relationship(
+        back_populates="message", cascade="all, delete-orphan"
+    )
+
+
+class MessageAttachment(Base):
+    __tablename__ = "message_attachments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id"), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size: Mapped[int] = mapped_column()
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+
+    message: Mapped["Message"] = relationship(back_populates="attachments")
 
 
 class ConsentGrant(Base):

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppSelector } from '../../app/hooks'
+import type { MessageAttachment } from './types'
 import { formatDateTime } from '../../shared/lib/format'
 import { Badge } from '../../shared/ui/Badge'
 import { Button } from '../../shared/ui/Button'
@@ -9,6 +10,34 @@ import { Modal } from '../../shared/ui/Modal'
 import { ErrorNote, Spinner } from '../../shared/ui/Page'
 import { useOpenThreadMutation, useSendMessageMutation } from './api'
 import type { Message } from './types'
+
+function AttachmentChip({ attachment }: { attachment: MessageAttachment }) {
+  const token = useAppSelector((s) => s.auth.accessToken)
+
+  async function download() {
+    const response = await fetch(`/api/messages/attachments/${attachment.id}/content`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    if (!response.ok) return
+    const url = URL.createObjectURL(await response.blob())
+    const a = document.createElement('a')
+    a.href = url
+    a.download = attachment.filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <button
+      onClick={download}
+      className="bg-surface border-line text-ink hover:border-primary hover:text-primary inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold"
+      title={`Download (${Math.max(1, Math.round(attachment.size / 1024))} KB)`}
+    >
+      <i className="iconify tabler--paperclip size-3" aria-hidden />
+      {attachment.filename}
+    </button>
+  )
+}
 
 export function ThreadModal({ message, onClose }: { message: Message; onClose: () => void }) {
   const me = useAppSelector((s) => s.auth.user)
@@ -30,7 +59,7 @@ export function ThreadModal({ message, onClose }: { message: Message; onClose: (
     // Reply goes to the other participant of the latest message.
     const otherId = latest.senderId === me.id ? latest.recipientId : latest.senderId
     const result = await send({
-      recipientId: otherId,
+      recipientIds: [otherId],
       subject: message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`,
       body: reply,
       parentId: latest.id,
@@ -76,6 +105,13 @@ export function ThreadModal({ message, onClose }: { message: Message; onClose: (
                     </span>
                   </p>
                   <p className="text-ink text-[13px] whitespace-pre-wrap">{m.body}</p>
+                  {m.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {m.attachments.map((attachment) => (
+                        <AttachmentChip key={attachment.id} attachment={attachment} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )
