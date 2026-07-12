@@ -9,13 +9,16 @@ from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
 from app.repositories.patients import PatientRepository
+from app.services import consent as consent_service
 from app.services import duplicates as duplicate_service
 from app.services import patients as patient_service
+from app.services.consent import ConsentError
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 can_view = require_roles("clinician", "front_desk")
 can_edit = require_roles("clinician")
+can_manage_consent = require_roles()
 
 
 @router.get("", response_model=schemas.Page[schemas.PatientOut])
@@ -64,6 +67,10 @@ def get_patient(
     patient = PatientRepository(db).get(patient_id)
     if patient is None:
         raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
     audit(db, user, "patient.viewed", entity_type="patient", entity_id=patient.id)
     return patient
 
@@ -72,11 +79,15 @@ def get_patient(
 def patient_summary(
     patient_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: models.User = Depends(can_view),
+    user: models.User = Depends(can_view),
 ):
     patient = PatientRepository(db).get(patient_id)
     if patient is None:
         raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
     summary = duplicate_service.patient_summary(db, patient)
     return schemas.PatientSummaryOut(
         sources=[schemas.SourceContribution(**s) for s in summary["sources"]],
@@ -98,6 +109,10 @@ def update_patient(
     if patient is None:
         raise HTTPException(404, "Patient not found")
     try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
+    try:
         patient = patient_service.update_patient(
             db,
             patient,
@@ -114,3 +129,39 @@ def update_patient(
         raise HTTPException(400, str(exc))
     audit(db, user, "patient.updated", entity_type="patient", entity_id=patient.id)
     return patient
+
+
+@router.get("/{patient_id}/consent", response_model=schemas.ConsentOut)
+def get_consent(
+    patient_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(can_manage_consent),
+):
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        raise HTTPException(404, "Patient not found")
+    return consent_service.describe_rules(db, patient)
+
+
+@router.put("/{patient_id}/consent", response_model=schemas.ConsentOut)
+def update_consent(
+    patient_id: uuid.UUID,
+    body: schemas.ConsentInput,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(can_manage_consent),
+):
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.update_rules(
+            db,
+            patient,
+            restricted=body.restricted,
+            grants=[g.model_dump() for g in body.grants],
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    audit(db, user, "consent.updated", entity_type="patient", entity_id=patient.id,
+          detail={"restricted": body.restricted, "grants": len(body.grants)})
+    return consent_service.describe_rules(db, patient)

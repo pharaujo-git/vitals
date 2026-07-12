@@ -33,6 +33,8 @@ class Patient(Base):
     address: Mapped[str | None] = mapped_column(String(255))
     history: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(30), default="manual")
+    # Consent: when restricted, only granted roles/users (and admins) may open the record.
+    restricted: Mapped[bool] = mapped_column(default=False)
     # Tombstone left behind by a duplicate merge; hidden from lists and search.
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("patients.id"), nullable=True
@@ -97,6 +99,18 @@ class Observation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
+
+
+class ConsentGrant(Base):
+    """An access rule on a restricted record: a role or a specific user."""
+
+    __tablename__ = "consent_grants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    grantee_type: Mapped[str] = mapped_column(String(10))  # role | user
+    grantee: Mapped[str] = mapped_column(String(255))  # role name or user id
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class DuplicateFlag(Base):

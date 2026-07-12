@@ -85,8 +85,30 @@ class PatientOut(ApiModel):
     address: str | None
     history: str | None
     source: str
+    restricted: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ConsentGrantInput(ApiModel):
+    grantee_type: str
+    grantee: str  # role name, or user email (resolved server-side)
+
+
+class ConsentGrantOut(ApiModel):
+    grantee_type: str
+    grantee: str
+    display: str
+
+
+class ConsentOut(ApiModel):
+    restricted: bool
+    grants: list[ConsentGrantOut]
+
+
+class ConsentInput(ApiModel):
+    restricted: bool
+    grants: list[ConsentGrantInput] = []
 
 
 # --- Appointments ---

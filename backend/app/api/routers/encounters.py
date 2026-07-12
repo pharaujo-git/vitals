@@ -9,10 +9,23 @@ from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
 from app.repositories.encounters import EncounterRepository
+from app.repositories.patients import PatientRepository
+from app.services import consent as consent_service
 from app.services import encounters as encounter_service
+from app.services.consent import ConsentError
 from app.services.observations import CATALOG
 
 router = APIRouter(tags=["encounters"])
+
+
+def _ensure_patient_access(db: Session, user: models.User, patient_id) -> None:
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
 
 can_view = require_roles("clinician")
 can_edit = require_roles("clinician")
@@ -31,6 +44,7 @@ def list_encounters(
     db: Session = Depends(get_db),
     user: models.User = Depends(can_view),
 ):
+    _ensure_patient_access(db, user, patient_id)
     items, total = EncounterRepository(db).page_for_patient(patient_id, limit, offset)
     audit(db, user, "encounters.viewed", entity_type="patient", entity_id=patient_id)
     return schemas.page([schemas.EncounterOut.from_orm_encounter(e) for e in items], total, limit, offset)
@@ -43,6 +57,7 @@ def create_encounter(
     db: Session = Depends(get_db),
     user: models.User = Depends(can_edit),
 ):
+    _ensure_patient_access(db, user, patient_id)
     try:
         encounter = encounter_service.create_encounter(
             db,
@@ -71,6 +86,7 @@ def add_observation(
     encounter = EncounterRepository(db).get(encounter_id)
     if encounter is None:
         raise HTTPException(404, "Encounter not found")
+    _ensure_patient_access(db, user, encounter.patient_id)
     try:
         encounter = encounter_service.add_observation(
             db,

@@ -12,8 +12,20 @@ export interface Patient {
   address: string | null
   history: string | null
   source: string
+  restricted: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface ConsentGrant {
+  granteeType: 'role' | 'user'
+  grantee: string
+  display: string
+}
+
+export interface Consent {
+  restricted: boolean
+  grants: ConsentGrant[]
 }
 
 export interface PatientInput {

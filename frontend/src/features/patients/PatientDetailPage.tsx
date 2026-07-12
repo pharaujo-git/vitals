@@ -5,9 +5,11 @@ import { EncountersCard } from '../encounters/EncountersCard'
 import { useLazyExportFhirQuery } from '../fhir/api'
 import { useHasRole } from '../../shared/hooks/useRole'
 import { ageFromDob, formatDate } from '../../shared/lib/format'
+import { Badge } from '../../shared/ui/Badge'
 import { Button } from '../../shared/ui/Button'
 import { Card, EmptyState, ErrorNote, PageBody, PageHeader, Spinner } from '../../shared/ui/Page'
 import { usePatientQuery } from './api'
+import { ConsentCard } from './ConsentCard'
 import { PatientModal } from './PatientModal'
 import { SourceBadge } from './PatientsPage'
 import { patientName, type Patient } from './types'
@@ -40,6 +42,7 @@ export function PatientDetailPage() {
   const { data: patient, isLoading, error } = usePatientQuery(id!)
   const [editing, setEditing] = useState(false)
   const canEdit = useHasRole('clinician')
+  const isAdmin = useHasRole()
   const [exportFhir, { isFetching: exporting }] = useLazyExportFhirQuery()
 
   async function onExportFhir() {
@@ -70,6 +73,11 @@ export function PatientDetailPage() {
         title={patientName(patient)}
         actions={
           <div className="flex items-center gap-2">
+            {patient.restricted && (
+              <Badge tone="red">
+                <i className="iconify tabler--lock size-3" aria-hidden /> Restricted
+              </Badge>
+            )}
             <SourceBadge source={patient.source} />
             {canEdit && (
               <Button size="sm" variant="secondary" onClick={onExportFhir} disabled={exporting}>
@@ -107,6 +115,12 @@ export function PatientDetailPage() {
           <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
             <EncountersCard patientId={patient.id} canEdit={canEdit} />
             <ConsolidatedCard patientId={patient.id} />
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="mt-4">
+            <ConsentCard patientId={patient.id} />
           </div>
         )}
 

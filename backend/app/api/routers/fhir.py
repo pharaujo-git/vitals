@@ -10,7 +10,9 @@ from app.db import models
 from app.db.session import get_db
 from app.repositories.observations import ObservationRepository
 from app.repositories.patients import PatientRepository
+from app.services import consent as consent_service
 from app.services import fhir as fhir_service
+from app.services.consent import ConsentError
 
 router = APIRouter(tags=["fhir"])
 
@@ -27,6 +29,10 @@ def export_patient_fhir(
     patient = PatientRepository(db).get(patient_id)
     if patient is None:
         raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
     observations = ObservationRepository(db).for_patient(patient_id)
     bundle = fhir_service.export_patient(patient, observations)
     audit(db, user, "patient.fhir_exported", entity_type="patient", entity_id=patient.id,
