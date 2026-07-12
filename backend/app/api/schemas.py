@@ -224,6 +224,45 @@ class SearchResults(ApiModel):
     encounters: list[EncounterHit]
 
 
+# --- Consolidated view & duplicates ---
+
+
+class SourceContribution(ApiModel):
+    source: str
+    encounters: int
+    observations: int
+
+
+class PatientSummaryOut(ApiModel):
+    sources: list[SourceContribution]
+    latest_observations: list[ObservationOut]
+    pending_duplicates: int
+
+
+class DuplicatePatientOut(ApiModel):
+    id: uuid.UUID
+    mrn: str
+    first_name: str
+    last_name: str
+    dob: date
+    sex: str
+    source: str
+
+
+class DuplicateFlagOut(ApiModel):
+    id: uuid.UUID
+    patient_a: DuplicatePatientOut
+    patient_b: DuplicatePatientOut
+    reason: str
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None
+
+
+class ScanResult(ApiModel):
+    new_flags: int
+
+
 # --- Imports ---
 
 

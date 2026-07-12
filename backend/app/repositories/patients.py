@@ -14,7 +14,11 @@ class PatientRepository(Repository):
         return self.db.scalar(select(models.Patient).where(models.Patient.mrn == mrn))
 
     def page(self, search: str | None, limit: int, offset: int):
-        stmt = select(models.Patient).order_by(models.Patient.last_name, models.Patient.first_name)
+        stmt = (
+            select(models.Patient)
+            .where(models.Patient.merged_into_id.is_(None))
+            .order_by(models.Patient.last_name, models.Patient.first_name)
+        )
         if search:
             like = f"%{search.strip()}%"
             stmt = stmt.where(

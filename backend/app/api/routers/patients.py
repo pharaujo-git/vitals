@@ -9,6 +9,7 @@ from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
 from app.repositories.patients import PatientRepository
+from app.services import duplicates as duplicate_service
 from app.services import patients as patient_service
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -65,6 +66,25 @@ def get_patient(
         raise HTTPException(404, "Patient not found")
     audit(db, user, "patient.viewed", entity_type="patient", entity_id=patient.id)
     return patient
+
+
+@router.get("/{patient_id}/summary", response_model=schemas.PatientSummaryOut)
+def patient_summary(
+    patient_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(can_view),
+):
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        raise HTTPException(404, "Patient not found")
+    summary = duplicate_service.patient_summary(db, patient)
+    return schemas.PatientSummaryOut(
+        sources=[schemas.SourceContribution(**s) for s in summary["sources"]],
+        latest_observations=[
+            schemas.ObservationOut.model_validate(o) for o in summary["latest_observations"]
+        ],
+        pending_duplicates=summary["pending_duplicates"],
+    )
 
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)

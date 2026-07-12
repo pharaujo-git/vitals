@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ConsolidatedCard } from '../duplicates/ConsolidatedCard'
 import { EncountersCard } from '../encounters/EncountersCard'
 import { useHasRole } from '../../shared/hooks/useRole'
 import { ageFromDob, formatDate } from '../../shared/lib/format'
@@ -82,8 +83,9 @@ export function PatientDetailPage() {
         </div>
 
         {canEdit && (
-          <div className="mt-4">
+          <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
             <EncountersCard patientId={patient.id} canEdit={canEdit} />
+            <ConsolidatedCard patientId={patient.id} />
           </div>
         )}
 

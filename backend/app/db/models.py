@@ -33,6 +33,10 @@ class Patient(Base):
     address: Mapped[str | None] = mapped_column(String(255))
     history: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(30), default="manual")
+    # Tombstone left behind by a duplicate merge; hidden from lists and search.
+    merged_into_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("patients.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -93,6 +97,23 @@ class Observation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
+
+
+class DuplicateFlag(Base):
+    """A candidate pair of records that may be the same person across sources."""
+
+    __tablename__ = "duplicate_flags"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    patient_b_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending|merged|dismissed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    patient_a: Mapped["Patient"] = relationship(foreign_keys=[patient_a_id])
+    patient_b: Mapped["Patient"] = relationship(foreign_keys=[patient_b_id])
 
 
 class ImportBatch(Base):

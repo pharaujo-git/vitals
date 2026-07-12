@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
     icon: 'tabler--calendar-time',
     roles: ['clinician', 'front_desk'],
   },
+  { to: '/duplicates', label: 'Duplicates', icon: 'tabler--users-group', roles: ['clinician'] },
   { to: '/import', label: 'Import', icon: 'tabler--database-import', roles: [] },
   { to: '/reports', label: 'Reports', icon: 'tabler--report-analytics', roles: ['manager'] },
   { to: '/audit', label: 'Audit log', icon: 'tabler--shield-search', roles: [] },
