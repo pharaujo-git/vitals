@@ -135,3 +135,66 @@ class AppointmentOut(ApiModel):
             reason=a.reason,
             status=a.status,
         )
+
+
+# --- Encounters & observations ---
+
+
+class ObservationInput(ApiModel):
+    code: str
+    value_num: float | None = None
+    value_text: str | None = None
+    taken_at: datetime | None = None
+
+
+class ObservationOut(ApiModel):
+    id: uuid.UUID
+    code: str
+    value_num: float | None
+    value_text: str | None
+    unit: str | None
+    taken_at: datetime
+    source: str
+
+
+class EncounterInput(ApiModel):
+    occurred_at: datetime
+    encounter_type: str = "visit"
+    reason: str | None = Field(default=None, max_length=255)
+    notes: str | None = None
+    observations: list[ObservationInput] = []
+
+
+class EncounterOut(ApiModel):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    clinician_name: str | None
+    occurred_at: datetime
+    encounter_type: str
+    reason: str | None
+    notes: str | None
+    source: str
+    observations: list[ObservationOut]
+
+    @classmethod
+    def from_orm_encounter(cls, e) -> "EncounterOut":
+        return cls(
+            id=e.id,
+            patient_id=e.patient_id,
+            clinician_name=e.clinician.display_name if e.clinician else None,
+            occurred_at=e.occurred_at,
+            encounter_type=e.encounter_type,
+            reason=e.reason,
+            notes=e.notes,
+            source=e.source,
+            observations=[ObservationOut.model_validate(o) for o in e.observations],
+        )
+
+
+class ObservationTypeOut(ApiModel):
+    code: str
+    label: str
+    kind: str
+    unit: str | None
+    min_value: float | None
+    max_value: float | None

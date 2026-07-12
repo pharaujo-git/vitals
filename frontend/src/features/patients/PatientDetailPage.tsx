@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { EncountersCard } from '../encounters/EncountersCard'
 import { useHasRole } from '../../shared/hooks/useRole'
 import { ageFromDob, formatDate } from '../../shared/lib/format'
 import { Button } from '../../shared/ui/Button'
@@ -79,6 +80,12 @@ export function PatientDetailPage() {
             )}
           </Card>
         </div>
+
+        {canEdit && (
+          <div className="mt-4">
+            <EncountersCard patientId={patient.id} canEdit={canEdit} />
+          </div>
+        )}
 
         {editing && <PatientModal patient={patient} onClose={() => setEditing(false)} />}
       </PageBody>

@@ -56,3 +56,40 @@ class Appointment(Base):
 
     patient: Mapped["Patient"] = relationship()
     clinician: Mapped["User"] = relationship()
+
+
+class Encounter(Base):
+    __tablename__ = "encounters"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    clinician_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    encounter_type: Mapped[str] = mapped_column(String(40), default="visit")
+    reason: Mapped[str | None] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(30), default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    patient: Mapped["Patient"] = relationship()
+    clinician: Mapped["User | None"] = relationship()
+    observations: Mapped[list["Observation"]] = relationship(
+        back_populates="encounter", cascade="all, delete-orphan"
+    )
+
+
+class Observation(Base):
+    __tablename__ = "observations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    encounter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("encounters.id"), index=True)
+    code: Mapped[str] = mapped_column(String(40), index=True)
+    value_num: Mapped[float | None] = mapped_column(nullable=True)
+    value_text: Mapped[str | None] = mapped_column(Text)
+    unit: Mapped[str | None] = mapped_column(String(20))
+    taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    source: Mapped[str] = mapped_column(String(30), default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    encounter: Mapped["Encounter"] = relationship(back_populates="observations")
