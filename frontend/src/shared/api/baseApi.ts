@@ -74,6 +74,7 @@ export const baseApi = createApi({
     'Message',
     'ClinicalList',
     'Timeline',
+    'Attachment',
   ],
   endpoints: () => ({}),
 })

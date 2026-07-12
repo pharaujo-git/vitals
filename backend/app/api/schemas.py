@@ -357,6 +357,20 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Attachments ---
+
+
+class AttachmentOut(ApiModel):
+    id: uuid.UUID
+    kind: str
+    filename: str
+    content_type: str
+    description: str | None
+    size: int
+    uploaded_by_name: str | None
+    created_at: datetime
+
+
 # --- Observation trends ---
 
 

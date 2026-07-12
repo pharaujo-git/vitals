@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AttachmentsCard } from '../attachments/AttachmentsCard'
 import { ClinicalListsCard } from '../clinical/ClinicalListsCard'
 import { TimelineCard } from '../timeline/TimelineCard'
 import { TrendsCard } from '../trends/TrendsCard'
@@ -127,7 +128,10 @@ export function PatientDetailPage() {
         {canEdit && (
           <div className="mt-4 space-y-4">
             <TrendsCard patientId={patient.id} />
-            <TimelineCard patientId={patient.id} />
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              <AttachmentsCard patientId={patient.id} />
+              <TimelineCard patientId={patient.id} />
+            </div>
           </div>
         )}
 

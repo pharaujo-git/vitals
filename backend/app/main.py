@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.routers import (
     appointments,
+    attachments,
     audit,
     auth,
     clinical,
@@ -31,6 +32,7 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
 app.include_router(clinical.router, prefix="/api")
+app.include_router(attachments.router, prefix="/api")
 
 
 @app.get("/api/health")
