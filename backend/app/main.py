@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 
 from app.api.routers import (
@@ -18,6 +20,9 @@ from app.api.routers import (
     search,
     users,
 )
+
+# Surface app loggers (e.g. the dev password-reset link) on the console.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
 
 app = FastAPI(title="Vitals API", version="0.1.0")
 

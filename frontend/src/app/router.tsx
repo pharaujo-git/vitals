@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './Layout'
 import { LoginPage, RegisterPage } from '../features/auth/AuthPages'
+import { ForgotPasswordPage, ResetPasswordPage } from '../features/auth/ResetPages'
 import { RouteError } from '../shared/ui/RouteError'
 import { HomePage } from '../features/home/HomePage'
 import { PatientsPage } from '../features/patients/PatientsPage'
@@ -17,6 +18,8 @@ import { UsersPage } from '../features/users/UsersPage'
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
   { path: '/register', element: <RegisterPage />, errorElement: <RouteError /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <RouteError /> },
+  { path: '/reset-password', element: <ResetPasswordPage />, errorElement: <RouteError /> },
   {
     path: '/',
     element: <AppLayout />,

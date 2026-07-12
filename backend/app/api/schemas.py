@@ -47,6 +47,15 @@ class ChangePasswordRequest(ApiModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class ForgotPasswordRequest(ApiModel):
+    email: str
+
+
+class ResetPasswordRequest(ApiModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserAdminOut(ApiModel):
     id: uuid.UUID
     email: str

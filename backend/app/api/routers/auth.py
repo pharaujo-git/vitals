@@ -85,6 +85,20 @@ def logout(
     response.delete_cookie(REFRESH_COOKIE, path="/api/auth")
 
 
+@router.post("/forgot-password", status_code=204)
+def forgot_password(body: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # Always 204 — never confirm whether the email exists.
+    auth_service.request_password_reset(db, body.email, base_url="http://localhost:5173")
+
+
+@router.post("/reset-password", status_code=204)
+def reset_password(body: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.reset_password(db, body.token, body.new_password)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
 @router.get("/me", response_model=schemas.UserOut)
 def me(user: models.User = Depends(security.get_current_user)):
     return user

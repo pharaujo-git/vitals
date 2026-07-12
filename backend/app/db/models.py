@@ -108,6 +108,19 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class PasswordResetToken(Base):
+    """Single-use, short-lived token for the forgot-password flow. In dev the
+    reset link is written to the server log instead of an email."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class RefreshToken(Base):
     """Server-side state for refresh tokens: rotation chain + revocation.
 

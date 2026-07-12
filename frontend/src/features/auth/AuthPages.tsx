@@ -188,6 +188,10 @@ export function LoginPage() {
           <Link to="/register" className="text-primary font-semibold underline-offset-4 hover:underline">
             Create an account
           </Link>
+          {' · '}
+          <Link to="/forgot-password" className="text-primary font-semibold underline-offset-4 hover:underline">
+            Forgot password?
+          </Link>
         </p>
       </form>
       <DemoAccounts

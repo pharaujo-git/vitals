@@ -1,5 +1,7 @@
 import base64
 import binascii
+import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import update
@@ -103,6 +105,60 @@ def change_password(
         .values(revoked_at=datetime.now(timezone.utc))
     )
     db.commit()
+
+
+# --- Password reset (forgot password) ---
+
+RESET_TOKEN_MINUTES = 60
+logger = logging.getLogger("vitals.auth")
+
+
+def request_password_reset(db: Session, email: str, base_url: str) -> None:
+    """Create a reset token when the account exists. Always silent to the
+    caller (no user enumeration); the link goes to the server log in place
+    of an email service."""
+    user = UserRepository(db).by_email(email.lower().strip())
+    if user is None or not user.active:
+        return
+    token = models.PasswordResetToken(
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_MINUTES),
+    )
+    db.add(token)
+    db.commit()
+    logger.info(
+        "Password reset requested for %s — link (valid %d min): %s/reset-password?token=%s",
+        user.email, RESET_TOKEN_MINUTES, base_url, token.id,
+    )
+
+
+def reset_password(db: Session, token_id: str, new_password: str) -> models.User:
+    try:
+        parsed = uuid.UUID(token_id)
+    except ValueError:
+        raise ValueError("Invalid reset link")
+    token = db.get(models.PasswordResetToken, parsed)
+    now = datetime.now(timezone.utc)
+    if token is None or token.used_at is not None or token.expires_at < now:
+        raise ValueError("This reset link is invalid or has expired")
+    user = UserRepository(db).get(token.user_id)
+    if user is None or not user.active:
+        raise ValueError("This reset link is invalid or has expired")
+    if len(new_password) < 8:
+        raise ValueError("New password needs at least 8 characters")
+    user.password_hash = security.hash_password(new_password)
+    user.failed_logins = 0
+    user.locked_until = None
+    token.used_at = now
+    # Sign out everywhere: the old credentials may be compromised.
+    db.execute(
+        update(models.RefreshToken)
+        .where(models.RefreshToken.user_id == user.id,
+               models.RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    db.commit()
+    return user
 
 
 # --- Refresh-token rotation ---
