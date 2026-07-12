@@ -1,11 +1,15 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 
 const controlClasses =
   'bg-surface border-line text-ink placeholder:text-ink-faint block h-9 w-full rounded-md border px-3 ' +
   'text-[13px] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
 
-export function Label({ children }: { children: ReactNode }) {
-  return <label className="text-ink mb-1.5 block text-[12.5px] font-semibold">{children}</label>
+export function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-ink mb-1.5 block text-[12.5px] font-semibold">
+      {children}
+    </label>
+  )
 }
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -14,22 +18,24 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: string
 }
 
-export function Input({ label, icon, className = '', ...rest }: InputProps) {
+export function Input({ label, icon, className = '', id, ...rest }: InputProps) {
+  const autoId = useId()
+  const inputId = id ?? (label ? autoId : undefined)
   const input = icon ? (
     <div className="relative">
       <i
         className={`iconify ${icon} text-ink-faint pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2`}
         aria-hidden
       />
-      <input className={`${controlClasses} pl-9 ${className}`} {...rest} />
+      <input id={inputId} className={`${controlClasses} pl-9 ${className}`} {...rest} />
     </div>
   ) : (
-    <input className={`${controlClasses} ${className}`} {...rest} />
+    <input id={inputId} className={`${controlClasses} ${className}`} {...rest} />
   )
   if (!label) return input
   return (
     <div>
-      <Label>{label}</Label>
+      <Label htmlFor={inputId}>{label}</Label>
       {input}
     </div>
   )
@@ -39,9 +45,11 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
 }
 
-export function Select({ label, className = '', children, ...rest }: SelectProps) {
+export function Select({ label, className = '', children, id, ...rest }: SelectProps) {
+  const autoId = useId()
+  const selectId = id ?? (label ? autoId : undefined)
   const select = (
-    <select className={`${controlClasses} appearance-none pr-8 ${className}`} {...rest}>
+    <select id={selectId} className={`${controlClasses} appearance-none pr-8 ${className}`} {...rest}>
       {children}
     </select>
   )
@@ -57,7 +65,7 @@ export function Select({ label, className = '', children, ...rest }: SelectProps
   if (!label) return wrapped
   return (
     <div>
-      <Label>{label}</Label>
+      <Label htmlFor={selectId}>{label}</Label>
       {wrapped}
     </div>
   )
@@ -67,9 +75,12 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
 }
 
-export function Textarea({ label, className = '', ...rest }: TextareaProps) {
+export function Textarea({ label, className = '', id, ...rest }: TextareaProps) {
+  const autoId = useId()
+  const textareaId = id ?? (label ? autoId : undefined)
   const textarea = (
     <textarea
+      id={textareaId}
       className={`${controlClasses} h-auto min-h-20 resize-y py-2 ${className}`}
       {...rest}
     />
@@ -77,7 +88,7 @@ export function Textarea({ label, className = '', ...rest }: TextareaProps) {
   if (!label) return textarea
   return (
     <div>
-      <Label>{label}</Label>
+      <Label htmlFor={textareaId}>{label}</Label>
       {textarea}
     </div>
   )
