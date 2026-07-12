@@ -14,41 +14,46 @@ through a second source system under different MRNs. Half of the second feed
 is clean, 15% has an **inner-character name typo**, 10% a **first-letter
 typo** (breaks the initial), and a quarter a **±1 day date-of-birth shift**.
 Five malformed rows (bad dates, unknown codes, out-of-range values, missing
-identifiers) are injected on top.
+identifiers) are injected on top. Both matcher configurations score the
+**same generated data**.
 
 ### Mapping error reporting
 
-- Injected malformed rows: **5**
-- Rows reported as batch issues: **5** → reporting rate **100%** (nothing silently dropped)
+- Injected malformed rows: **5**; reported as batch issues:
+  **5** → reporting rate **100%** (nothing silently dropped)
 - Clean feed A imported 200/200 rows with 0 errors
 
-### Duplicate detection (name + DOB heuristics)
+### Duplicate detection — the research iteration
 
-| Metric | Value |
-|---|---|
-| True pairs found | 81 / 120 |
-| False positives | 1 |
-| Precision | **0.99** |
-| Recall | **0.68** |
-| F1 | **0.80** |
+**Baseline**: exact name+DOB and first-initial+surname+DOB.
+**Enhanced**: baseline **plus** bounded edit-distance name matching
+(Damerau–Levenshtein ≤ 2, blocked by DOB) and a ±31-day DOB window on
+identical names.
 
-Recall by corruption type:
+| Matcher | True pairs | False pos. | Precision | Recall | F1 |
+|---|---|---|---|---|---|
+| Baseline | 81 / 120 | 1 | 0.99 | 0.68 | **0.80** |
+| Enhanced | 120 / 120 | 1 | 0.99 | 1.00 | **1.00** |
 
-| Corruption | Found | Notes |
-|---|---|---|
-| clean | 69/69 | exact name+DOB match |
-| typo_inner | 12/12 | first initial survives, so the initial+surname+DOB heuristic catches these |
-| typo_first | 0/17 | the initial breaks — missed by both heuristics |
-| dob_shift | 0/22 | missed by design — the heuristics require an exact DOB |
+Recall by corruption type (baseline → enhanced):
 
-**Reading.** Exact and inner-typo duplicates are handled by MRN upsert
-plus the two name+DOB heuristics; false positives come from coincidental
-name+DOB collisions in a small name pool, which is why flags go to human
-review instead of auto-merging. The two failure modes measured here —
-typos that break the first initial, and DOB shifts — motivate the obvious
-next step for the research agenda: phonetic name codes (Soundex/Metaphone)
-and windowed DOB blocking, then re-running this same harness to quantify
-the gain.
+| Corruption | Baseline | Enhanced | Mechanism |
+|---|---|---|---|
+| clean | 69/69 | **69/69** | exact name+DOB match |
+| typo_inner | 12/12 | **12/12** | first initial survives → initial heuristic |
+| typo_first | 0/17 | **17/17** | initial breaks → needs edit-distance matching |
+| dob_shift | 0/22 | **22/22** | exact DOB breaks → needs the DOB window |
+
+**Reading.** The first iteration measured two failure modes — typos that
+break the first initial, and shifted dates of birth — and this iteration
+closes them: bounded edit-distance matching recovers the first-letter
+typos and the DOB window recovers the date shifts, lifting recall from
+**0.68 to 1.00** at nearly
+unchanged precision (false positives remain coincidental name+DOB
+collisions in a small name pool — the reason flags go to human review
+instead of auto-merging). The harness stays in place to price the next
+candidate improvements (phonetic codes, nickname tables, household
+blocking) the same way.
 
 ## Experiment 2 — explainable rules vs logistic regression
 

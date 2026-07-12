@@ -1,21 +1,29 @@
 """Duplicate detection and resolution across source systems.
 
-Heuristics stay deliberately simple and explainable: two records are
-candidates when their normalized name and date of birth line up. Review is
-human — a flag is merged or dismissed, never auto-resolved.
+Heuristics stay deliberately explainable. Two exact tiers (name+DOB, and
+first-initial+surname+DOB) are joined by two approximate tiers measured in
+docs/EVALUATION.md: near-identical names on the same DOB (bounded edit
+distance, catching typos that break the first initial) and identical names
+with DOBs a few days apart (catching off-by-one date-of-birth keying).
+Review is human — a flag is merged or dismissed, never auto-resolved.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import models
 from app.repositories.duplicates import DuplicateRepository
+from app.services.matching import full_name_similar
+
+DOB_WINDOW_DAYS = 31
 
 
-def scan(db: Session) -> int:
-    """Flag patient pairs that look like the same person. Returns new flag count."""
+def scan(db: Session, *, fuzzy: bool = True, dob_window_days: int = DOB_WINDOW_DAYS) -> int:
+    """Flag patient pairs that look like the same person. Returns new flag
+    count. `fuzzy` and `dob_window_days` gate the approximate tiers (the
+    evaluation harness runs the baseline by turning them off)."""
     repo = DuplicateRepository(db)
     patients = list(
         db.scalars(select(models.Patient).where(models.Patient.merged_into_id.is_(None)))
@@ -25,6 +33,22 @@ def scan(db: Session) -> int:
         return s.strip().lower()
 
     created = 0
+    seen_pairs: set[tuple] = set()
+
+    def flag(a: models.Patient, b: models.Patient, reason: str) -> None:
+        nonlocal created
+        pair = tuple(sorted((str(a.id), str(b.id))))
+        if pair in seen_pairs:
+            return
+        seen_pairs.add(pair)
+        if repo.existing_pair(a.id, b.id) is not None:
+            return
+        if a.source != b.source:
+            reason += f" across sources ({a.source} / {b.source})"
+        db.add(models.DuplicateFlag(patient_a_id=a.id, patient_b_id=b.id, reason=reason))
+        created += 1
+
+    # Tiers 1 & 2: exact keys.
     by_key: dict[tuple, list[models.Patient]] = {}
     for p in patients:
         exact = ("exact", norm(p.first_name), norm(p.last_name), p.dob)
@@ -32,7 +56,6 @@ def scan(db: Session) -> int:
         for key in (exact, initial):
             by_key.setdefault(key, []).append(p)
 
-    seen_pairs: set[tuple] = set()
     for key, group in by_key.items():
         if len(group) < 2:
             continue
@@ -41,21 +64,41 @@ def scan(db: Session) -> int:
             for b in group[i + 1 :]:
                 if a.id == b.id:
                     continue
-                pair = tuple(sorted((str(a.id), str(b.id))))
-                if pair in seen_pairs:
-                    continue
-                seen_pairs.add(pair)
-                if repo.existing_pair(a.id, b.id) is not None:
-                    continue
-                reason = (
+                flag(
+                    a,
+                    b,
                     "Same name and date of birth"
                     if kind == "exact"
-                    else "Same last name, first initial and date of birth"
+                    else "Same last name, first initial and date of birth",
                 )
-                if a.source != b.source:
-                    reason += f" across sources ({a.source} / {b.source})"
-                db.add(models.DuplicateFlag(patient_a_id=a.id, patient_b_id=b.id, reason=reason))
-                created += 1
+
+    # Tier 3: near-identical full names on the same DOB (typos incl. first letter).
+    if fuzzy:
+        by_dob: dict[date, list[models.Patient]] = {}
+        for p in patients:
+            by_dob.setdefault(p.dob, []).append(p)
+        for group in by_dob.values():
+            if len(group) < 2:
+                continue
+            for i, a in enumerate(group):
+                for b in group[i + 1 :]:
+                    if full_name_similar(a.first_name, a.last_name, b.first_name, b.last_name):
+                        flag(a, b, "Nearly identical name and same date of birth")
+
+    # Tier 4: identical names with DOBs a few days apart (keying errors).
+    if dob_window_days > 0:
+        by_name: dict[tuple, list[models.Patient]] = {}
+        for p in patients:
+            by_name.setdefault((norm(p.first_name), norm(p.last_name)), []).append(p)
+        for group in by_name.values():
+            if len(group) < 2:
+                continue
+            for i, a in enumerate(group):
+                for b in group[i + 1 :]:
+                    delta = abs((a.dob - b.dob).days)
+                    if 0 < delta <= dob_window_days:
+                        flag(a, b, f"Same name with dates of birth {delta} day(s) apart")
+
     db.commit()
     return created
 

@@ -52,6 +52,40 @@ def test_merge_moves_data_and_hides_tombstone(db):
     assert duplicates.scan(db) == 0
 
 
+def test_fuzzy_tier_catches_first_letter_typos(db):
+    make_patient(db, first_name="Sofia", last_name="Costa", dob=date(1972, 9, 9))
+    make_patient(db, first_name="oSfia", last_name="Costa", dob=date(1972, 9, 9), source="csv")
+
+    assert duplicates.scan(db, fuzzy=False, dob_window_days=0) == 0  # baseline misses it
+    assert duplicates.scan(db) == 1
+    flag = db.query(models.DuplicateFlag).one()
+    assert "Nearly identical name" in flag.reason
+
+
+def test_dob_window_tier_catches_shifted_dates(db):
+    make_patient(db, first_name="Victor", last_name="Khan", dob=date(1980, 6, 15))
+    make_patient(db, first_name="Victor", last_name="Khan", dob=date(1980, 6, 16), source="hl7")
+
+    assert duplicates.scan(db, fuzzy=False, dob_window_days=0) == 0
+    assert duplicates.scan(db) == 1
+    flag = db.query(models.DuplicateFlag).one()
+    assert "1 day(s) apart" in flag.reason
+
+
+def test_fuzzy_tier_leaves_distinct_names_alone(db):
+    make_patient(db, first_name="Maria", last_name="Silva", dob=date(1970, 1, 1))
+    make_patient(db, first_name="Elena", last_name="Nguyen", dob=date(1970, 1, 1))
+    assert duplicates.scan(db) == 0
+
+
+def test_short_names_require_exact_match(db):
+    make_patient(db, first_name="Al", last_name="Bo", dob=date(1970, 1, 1))
+    make_patient(db, first_name="Al", last_name="Ba", dob=date(1970, 1, 1))
+    # 'Al Bo' vs 'Al Ba' would pass an edit-distance check, but short names
+    # are held to exact matching to avoid noise.
+    assert duplicates.scan(db) == 0
+
+
 def test_summary_merges_sources(db):
     patient = make_patient(db, source="manual")
     add_observation(db, patient, "heart_rate", 70)
