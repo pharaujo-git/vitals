@@ -1,0 +1,12 @@
+from fastapi import FastAPI
+
+from app.api.routers import auth
+
+app = FastAPI(title="Vitals API", version="0.1.0")
+
+app.include_router(auth.router, prefix="/api")
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
