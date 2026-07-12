@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+@import 'tailwindcss';
+
+@plugin "@iconify/tailwind4" {
+  prefixes: tabler;
+}
+
+/*
+ * Design tokens: dark blue-gray sidebar, light gray page plane, bordered
+ * white cards, teal primary. Utilities reference the tokens, so redefining
+ * them under [data-theme="dark"] flips the whole app.
+ */
+@theme {
+  --font-sans: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* surfaces & ink */
+  --color-page: #f2f3f8;
+  --color-surface: #ffffff;
+  --color-ink: #3b3f51;
+  --color-ink-muted: #8a92a6;
+  --color-ink-faint: #b9bfce;
+  --color-line: #e6e8f0;
+  --color-well: #f5f6fa; /* subtle inset areas: table headers, progress tracks */
+
+  /* accents (fixed across themes) */
+  --color-primary: #17a98c;
+  --color-primary-deep: #128a72;
+  --color-accent-blue: #2586c9;
+  --color-accent-green: #0bbd8b;
+  --color-accent-amber: #f0a04b;
+  --color-accent-red: #e25563;
+  --color-accent-violet: #7a6ff0;
+
+  /* dark sidebar (constant in light mode, deepens in dark mode) */
+  --color-sidenav: #253544;
+  --color-sidenav-line: #30455a;
+  --color-sidenav-ink: #97a6b8;
+  --color-sidenav-ink-bright: #dde5ec;
+  --color-sidenav-active: #1c2937;
+
+  --radius-card: 8px;
+  --shadow-card: 0 1px 3px 0 rgb(60 70 100 / 0.06);
+}
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-page: #16171d;
+  --color-surface: #1e2028;
+  --color-ink: #c9cfdc;
+  --color-ink-muted: #808a9d;
+  --color-ink-faint: #575f71;
+  --color-line: #2b2e3a;
+  --color-well: #24262f;
+
+  --color-sidenav: #1a222c;
+  --color-sidenav-line: #242f3c;
+  --color-sidenav-active: #131a22;
+
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-page text-ink font-sans antialiased;
+  font-size: 13.5px;
+}
