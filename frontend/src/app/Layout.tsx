@@ -6,6 +6,7 @@ import { useUnreadCountQuery } from '../features/messages/api'
 import { SearchBox } from '../features/search/SearchBox'
 import { baseApi } from '../shared/api/baseApi'
 import { roleLabels, type Role } from '../shared/api/types'
+import { useLiveUpdates } from '../shared/hooks/useLiveUpdates'
 import { setTheme, useTheme } from '../shared/lib/theme'
 
 interface NavItem {
@@ -39,6 +40,8 @@ const navItems: NavItem[] = [
 
 export function AppLayout() {
   const user = useAppSelector((s) => s.auth.user)
+  // One SSE connection for the whole shell: new mail invalidates Message caches.
+  useLiveUpdates('messages', ['Message'])
   const [drawerOpen, setDrawerOpen] = useState(false)
   // Desktop-only: collapse the sidebar to an icon rail, persisted across reloads.
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vitals-sidenav') === 'collapsed')
@@ -164,9 +167,9 @@ export function AppLayout() {
   )
 }
 
-/** Unread-message count, polled so the badge stays fresh without a reload. */
+/** Unread-message count; refreshed by the SSE change signal, not polling. */
 function UnreadNavBadge({ collapsed }: { collapsed: boolean }) {
-  const { data } = useUnreadCountQuery(undefined, { pollingInterval: 30_000 })
+  const { data } = useUnreadCountQuery()
   if (!data || data.count === 0) return null
   return (
     <span
@@ -180,7 +183,7 @@ function UnreadNavBadge({ collapsed }: { collapsed: boolean }) {
 }
 
 function TopbarMail() {
-  const { data } = useUnreadCountQuery(undefined, { pollingInterval: 30_000 })
+  const { data } = useUnreadCountQuery()
   return (
     <Link
       to="/messages"

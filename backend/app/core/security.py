@@ -66,6 +66,15 @@ def get_current_user(
     return user
 
 
+def user_from_token(db: Session, token: str) -> models.User:
+    """Authenticate a raw access token (SSE: EventSource can't send headers)."""
+    user_id = decode_token(token, "access")
+    user = db.get(models.User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
+    return user
+
+
 def require_roles(*roles: str):
     """Dependency: only these roles (admin always passes) may call the endpoint."""
 
