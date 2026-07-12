@@ -3,6 +3,8 @@ import { AppLayout } from './Layout'
 import { LoginPage, RegisterPage } from '../features/auth/AuthPages'
 import { RouteError } from '../shared/ui/RouteError'
 import { HomePage } from '../features/home/HomePage'
+import { PatientsPage } from '../features/patients/PatientsPage'
+import { PatientDetailPage } from '../features/patients/PatientDetailPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
@@ -15,7 +17,11 @@ export const router = createBrowserRouter([
       // Pathless child so page-level errors render inside the layout chrome.
       {
         errorElement: <RouteError />,
-        children: [{ index: true, element: <HomePage /> }],
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'patients', element: <PatientsPage /> },
+          { path: 'patients/:id', element: <PatientDetailPage /> },
+        ],
       },
     ],
   },

@@ -1,0 +1,46 @@
+export type Sex = 'female' | 'male' | 'other' | 'unknown'
+
+export interface Patient {
+  id: string
+  mrn: string
+  firstName: string
+  lastName: string
+  dob: string
+  sex: Sex
+  phone: string | null
+  email: string | null
+  address: string | null
+  history: string | null
+  source: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PatientInput {
+  firstName: string
+  lastName: string
+  dob: string
+  sex: Sex
+  phone: string | null
+  email: string | null
+  address: string | null
+  history: string | null
+  mrn?: string | null
+}
+
+export interface PatientFilters {
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+export const sourceLabels: Record<string, string> = {
+  manual: 'Manual',
+  csv: 'CSV import',
+  hl7: 'HL7 feed',
+  fhir: 'FHIR import',
+}
+
+export function patientName(p: { firstName: string; lastName: string }): string {
+  return `${p.firstName} ${p.lastName}`
+}

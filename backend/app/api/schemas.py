@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, datetime
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -55,3 +56,34 @@ class AuthResponse(ApiModel):
     access_token: str
     refresh_token: str
     user: UserOut
+
+
+# --- Patients ---
+
+
+class PatientInput(ApiModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    dob: date
+    sex: str = "unknown"
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    history: str | None = None
+    mrn: str | None = Field(default=None, max_length=40)
+
+
+class PatientOut(ApiModel):
+    id: uuid.UUID
+    mrn: str
+    first_name: str
+    last_name: str
+    dob: date
+    sex: str
+    phone: str | None
+    email: str | None
+    address: str | None
+    history: str | None
+    source: str
+    created_at: datetime
+    updated_at: datetime
