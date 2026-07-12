@@ -95,6 +95,37 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class ImportBatch(Base):
+    __tablename__ = "import_batches"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    label: Mapped[str] = mapped_column(String(255))
+    format: Mapped[str] = mapped_column(String(20))  # csv | hl7 | fhir
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    total_records: Mapped[int] = mapped_column(default=0)
+    imported_count: Mapped[int] = mapped_column(default=0)
+    error_count: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    issues: Mapped[list["ImportIssue"]] = relationship(
+        back_populates="batch", cascade="all, delete-orphan"
+    )
+
+
+class ImportIssue(Base):
+    """A record that failed mapping: reported, never silently dropped."""
+
+    __tablename__ = "import_issues"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("import_batches.id"), index=True)
+    record_number: Mapped[int] = mapped_column()
+    message: Mapped[str] = mapped_column(String(500))
+    raw: Mapped[str | None] = mapped_column(Text)
+
+    batch: Mapped["ImportBatch"] = relationship(back_populates="issues")
+
+
 class AuditLog(Base):
     """Append-only trail of who viewed or changed sensitive data.
 

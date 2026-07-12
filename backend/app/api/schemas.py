@@ -224,6 +224,31 @@ class SearchResults(ApiModel):
     encounters: list[EncounterHit]
 
 
+# --- Imports ---
+
+
+class ImportTextInput(ApiModel):
+    label: str = Field(min_length=1, max_length=255)
+    content: str = Field(min_length=1)
+
+
+class ImportBatchOut(ApiModel):
+    id: uuid.UUID
+    label: str
+    format: str
+    total_records: int
+    imported_count: int
+    error_count: int
+    created_at: datetime
+
+
+class ImportIssueOut(ApiModel):
+    id: uuid.UUID
+    record_number: int
+    message: str
+    raw: str | None
+
+
 # --- Audit ---
 
 

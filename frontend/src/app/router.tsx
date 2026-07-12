@@ -7,6 +7,7 @@ import { PatientsPage } from '../features/patients/PatientsPage'
 import { PatientDetailPage } from '../features/patients/PatientDetailPage'
 import { AppointmentsPage } from '../features/appointments/AppointmentsPage'
 import { AuditPage } from '../features/audit/AuditPage'
+import { ImportPage } from '../features/import/ImportPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
           { path: 'patients/:id', element: <PatientDetailPage /> },
           { path: 'appointments', element: <AppointmentsPage /> },
           { path: 'audit', element: <AuditPage /> },
+          { path: 'import', element: <ImportPage /> },
         ],
       },
     ],
