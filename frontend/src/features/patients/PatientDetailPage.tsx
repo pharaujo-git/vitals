@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ClinicalListsCard } from '../clinical/ClinicalListsCard'
+import { TimelineCard } from '../timeline/TimelineCard'
 import { ConsolidatedCard } from '../duplicates/ConsolidatedCard'
 import { EncountersCard } from '../encounters/EncountersCard'
 import { useLazyExportFhirQuery } from '../fhir/api'
@@ -119,6 +120,12 @@ export function PatientDetailPage() {
               <ClinicalListsCard patientId={patient.id} />
               <ConsolidatedCard patientId={patient.id} />
             </div>
+          </div>
+        )}
+
+        {canEdit && (
+          <div className="mt-4">
+            <TimelineCard patientId={patient.id} />
           </div>
         )}
 

@@ -12,6 +12,7 @@ from app.repositories.patients import PatientRepository
 from app.services import consent as consent_service
 from app.services import duplicates as duplicate_service
 from app.services import patients as patient_service
+from app.services import timeline as timeline_service
 from app.services.consent import ConsentError
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -129,6 +130,28 @@ def update_patient(
         raise HTTPException(400, str(exc))
     audit(db, user, "patient.updated", entity_type="patient", entity_id=patient.id)
     return patient
+
+
+@router.get("/{patient_id}/timeline", response_model=schemas.Page[schemas.TimelineEventOut])
+def patient_timeline(
+    patient_id: uuid.UUID,
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_roles("clinician")),
+):
+    patient = PatientRepository(db).get(patient_id)
+    if patient is None:
+        raise HTTPException(404, "Patient not found")
+    try:
+        consent_service.ensure_access(db, user, patient)
+    except ConsentError as exc:
+        raise HTTPException(403, str(exc))
+    events = timeline_service.build(db, patient_id)
+    window = events[offset : offset + limit]
+    return schemas.page(
+        [schemas.TimelineEventOut(**vars(e)) for e in window], len(events), limit, offset
+    )
 
 
 @router.get("/{patient_id}/consent", response_model=schemas.ConsentOut)

@@ -357,6 +357,17 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Timeline ---
+
+
+class TimelineEventOut(ApiModel):
+    kind: str
+    at: datetime
+    title: str
+    detail: str | None
+    source: str | None
+
+
 # --- Clinical lists: problems, medications, allergies ---
 
 
