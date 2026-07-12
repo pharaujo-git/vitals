@@ -101,6 +101,44 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class Problem(Base):
+    """Problem list entry: a diagnosed or reported condition."""
+
+    __tablename__ = "problems"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    description: Mapped[str] = mapped_column(String(255))
+    icd_code: Mapped[str | None] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | resolved
+    onset_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Medication(Base):
+    __tablename__ = "medications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    dose: Mapped[str | None] = mapped_column(String(80))
+    frequency: Mapped[str | None] = mapped_column(String(80))
+    active: Mapped[bool] = mapped_column(default=True)
+    started_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Allergy(Base):
+    __tablename__ = "allergies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    substance: Mapped[str] = mapped_column(String(120))
+    reaction: Mapped[str | None] = mapped_column(String(255))
+    severity: Mapped[str] = mapped_column(String(20), default="moderate")  # mild|moderate|severe
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Message(Base):
     """Internal email-style message between staff, optionally about a patient.
 

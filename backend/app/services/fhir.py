@@ -12,7 +12,10 @@ import json
 import uuid
 from datetime import datetime, timezone
 
+from fhir.resources.R4B.allergyintolerance import AllergyIntolerance as FhirAllergy
 from fhir.resources.R4B.bundle import Bundle
+from fhir.resources.R4B.condition import Condition as FhirCondition
+from fhir.resources.R4B.medicationstatement import MedicationStatement as FhirMedication
 from fhir.resources.R4B.observation import Observation as FhirObservation
 from fhir.resources.R4B.patient import Patient as FhirPatient
 from pydantic import ValidationError
@@ -29,7 +32,13 @@ MRN_SYSTEM = "urn:vitals:mrn"
 LOINC_SYSTEM = "http://loinc.org"
 
 
-def export_patient(patient: models.Patient, observations: list[models.Observation]) -> dict:
+def export_patient(
+    patient: models.Patient,
+    observations: list[models.Observation],
+    problems: list[models.Problem] = (),
+    medications: list[models.Medication] = (),
+    allergies: list[models.Allergy] = (),
+) -> dict:
     fhir_patient = FhirPatient(
         id=str(patient.id),
         identifier=[{"system": MRN_SYSTEM, "value": patient.mrn}],
@@ -69,6 +78,64 @@ def export_patient(patient: models.Patient, observations: list[models.Observatio
         )
         entries.append(
             {"fullUrl": f"urn:uuid:{obs.id}", "resource": resource.model_dump(mode="json", exclude_none=True)}
+        )
+
+    subject = {"reference": f"urn:uuid:{patient.id}"}
+    for problem in problems:
+        resource = FhirCondition(
+            id=str(problem.id),
+            clinicalStatus={
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        "code": "active" if problem.status == "active" else "resolved",
+                    }
+                ]
+            },
+            code={
+                "text": problem.description,
+                **(
+                    {"coding": [{"system": "http://hl7.org/fhir/sid/icd-10", "code": problem.icd_code}]}
+                    if problem.icd_code
+                    else {}
+                ),
+            },
+            subject=subject,
+            onsetDateTime=problem.onset_date.isoformat() if problem.onset_date else None,
+        )
+        entries.append(
+            {"fullUrl": f"urn:uuid:{problem.id}", "resource": resource.model_dump(mode="json", exclude_none=True)}
+        )
+
+    for medication in medications:
+        dosage_text = " ".join(filter(None, (medication.dose, medication.frequency)))
+        resource = FhirMedication(
+            id=str(medication.id),
+            status="active" if medication.active else "stopped",
+            medicationCodeableConcept={"text": medication.name},
+            subject=subject,
+            dosage=[{"text": dosage_text}] if dosage_text else None,
+            effectiveDateTime=(
+                medication.started_date.isoformat() if medication.started_date else None
+            ),
+        )
+        entries.append(
+            {"fullUrl": f"urn:uuid:{medication.id}", "resource": resource.model_dump(mode="json", exclude_none=True)}
+        )
+
+    for allergy in allergies:
+        resource = FhirAllergy(
+            id=str(allergy.id),
+            code={"text": allergy.substance},
+            patient=subject,
+            reaction=(
+                [{"manifestation": [{"text": allergy.reaction}], "severity": allergy.severity}]
+                if allergy.reaction
+                else None
+            ),
+        )
+        entries.append(
+            {"fullUrl": f"urn:uuid:{allergy.id}", "resource": resource.model_dump(mode="json", exclude_none=True)}
         )
 
     bundle = Bundle(type="collection", timestamp=datetime.now(timezone.utc).isoformat(), entry=entries)

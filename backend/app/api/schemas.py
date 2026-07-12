@@ -357,6 +357,60 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Clinical lists: problems, medications, allergies ---
+
+
+class ProblemInput(ApiModel):
+    description: str = Field(min_length=1, max_length=255)
+    icd_code: str | None = Field(default=None, max_length=20)
+    status: str = "active"
+    onset_date: date | None = None
+
+
+class ProblemOut(ApiModel):
+    id: uuid.UUID
+    description: str
+    icd_code: str | None
+    status: str
+    onset_date: date | None
+
+
+class MedicationInput(ApiModel):
+    name: str = Field(min_length=1, max_length=120)
+    dose: str | None = Field(default=None, max_length=80)
+    frequency: str | None = Field(default=None, max_length=80)
+    active: bool = True
+    started_date: date | None = None
+
+
+class MedicationOut(ApiModel):
+    id: uuid.UUID
+    name: str
+    dose: str | None
+    frequency: str | None
+    active: bool
+    started_date: date | None
+
+
+class AllergyInput(ApiModel):
+    substance: str = Field(min_length=1, max_length=120)
+    reaction: str | None = Field(default=None, max_length=255)
+    severity: str = "moderate"
+
+
+class AllergyOut(ApiModel):
+    id: uuid.UUID
+    substance: str
+    reaction: str | None
+    severity: str
+
+
+class ClinicalListsOut(ApiModel):
+    problems: list[ProblemOut]
+    medications: list[MedicationOut]
+    allergies: list[AllergyOut]
+
+
 # --- Messages ---
 
 

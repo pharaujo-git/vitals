@@ -8,6 +8,7 @@ from app.core.audit import audit
 from app.core.security import require_roles
 from app.db import models
 from app.db.session import get_db
+from app.repositories.clinical import ClinicalListRepository
 from app.repositories.observations import ObservationRepository
 from app.repositories.patients import PatientRepository
 from app.services import consent as consent_service
@@ -34,7 +35,14 @@ def export_patient_fhir(
     except ConsentError as exc:
         raise HTTPException(403, str(exc))
     observations = ObservationRepository(db).for_patient(patient_id)
-    bundle = fhir_service.export_patient(patient, observations)
+    clinical = ClinicalListRepository(db)
+    bundle = fhir_service.export_patient(
+        patient,
+        observations,
+        problems=clinical.problems(patient_id),
+        medications=clinical.medications(patient_id),
+        allergies=clinical.allergies(patient_id),
+    )
     audit(db, user, "patient.fhir_exported", entity_type="patient", entity_id=patient.id,
           detail={"observations": len(observations)})
     return bundle

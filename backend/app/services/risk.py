@@ -95,6 +95,37 @@ def _score_rules(age: int, latest: dict[str, float]) -> tuple[int, list[str]]:
     return score, reasons
 
 
+CHRONIC_KEYWORDS = (
+    "diabetes", "hypertension", "copd", "heart failure", "coronary",
+    "chronic kidney", "ckd", "asthma", "stroke", "atrial fibrillation",
+)
+POLYPHARMACY_THRESHOLD = 5
+
+
+def _score_history(
+    problems: list[models.Problem], medications: list[models.Medication]
+) -> tuple[int, list[str]]:
+    """History-based rules: chronic conditions on the problem list, polypharmacy."""
+    score = 0
+    reasons: list[str] = []
+
+    chronic_hits = [
+        p.description
+        for p in problems
+        if p.status == "active" and any(k in p.description.lower() for k in CHRONIC_KEYWORDS)
+    ]
+    for description in chronic_hits[:2]:  # capped so a long list can't dominate
+        score += 1
+        reasons.append(f"Chronic condition on problem list: {description} (+1)")
+
+    active_meds = sum(1 for m in medications if m.active)
+    if active_meds >= POLYPHARMACY_THRESHOLD:
+        score += 1
+        reasons.append(f"Polypharmacy: {active_meds} active medications (+1)")
+
+    return score, reasons
+
+
 def compute_flags(db: Session) -> list[RiskFlag]:
     """Score every active patient; returns flags at or above the threshold,
     highest risk first."""
@@ -120,10 +151,22 @@ def compute_flags(db: Session) -> list[RiskFlag]:
         for (patient_id, code), row in df.iterrows():
             latest_by_patient.setdefault(patient_id, {})[code] = float(row["value"])
 
+    problems_by_patient: dict = {}
+    for problem in db.scalars(select(models.Problem)):
+        problems_by_patient.setdefault(problem.patient_id, []).append(problem)
+    medications_by_patient: dict = {}
+    for medication in db.scalars(select(models.Medication)):
+        medications_by_patient.setdefault(medication.patient_id, []).append(medication)
+
     flags: list[RiskFlag] = []
     for patient_id, patient in patients.items():
         latest = latest_by_patient.get(patient_id, {})
         score, reasons = _score_rules(_age(patient.dob), latest)
+        history_score, history_reasons = _score_history(
+            problems_by_patient.get(patient_id, []), medications_by_patient.get(patient_id, [])
+        )
+        score += history_score
+        reasons.extend(history_reasons)
         if score >= FLAG_THRESHOLD:
             level = "high" if score >= HIGH_THRESHOLD else "moderate"
             flags.append(RiskFlag(patient=patient, score=score, level=level, reasons=reasons))

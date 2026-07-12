@@ -4,6 +4,7 @@ from app.api.routers import (
     appointments,
     audit,
     auth,
+    clinical,
     dashboard,
     duplicates,
     encounters,
@@ -29,6 +30,7 @@ app.include_router(fhir.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
+app.include_router(clinical.router, prefix="/api")
 
 
 @app.get("/api/health")

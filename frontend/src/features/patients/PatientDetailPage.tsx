@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ClinicalListsCard } from '../clinical/ClinicalListsCard'
 import { ConsolidatedCard } from '../duplicates/ConsolidatedCard'
 import { EncountersCard } from '../encounters/EncountersCard'
 import { useLazyExportFhirQuery } from '../fhir/api'
@@ -114,7 +115,10 @@ export function PatientDetailPage() {
         {canEdit && (
           <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
             <EncountersCard patientId={patient.id} canEdit={canEdit} />
-            <ConsolidatedCard patientId={patient.id} />
+            <div className="space-y-4">
+              <ClinicalListsCard patientId={patient.id} />
+              <ConsolidatedCard patientId={patient.id} />
+            </div>
           </div>
         )}
 
