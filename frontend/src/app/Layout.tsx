@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './hooks'
 import { clearCredentials } from '../features/auth/authSlice'
+import { useUnreadCountQuery } from '../features/messages/api'
 import { SearchBox } from '../features/search/SearchBox'
 import { baseApi } from '../shared/api/baseApi'
 import { roleLabels, type Role } from '../shared/api/types'
@@ -23,6 +24,12 @@ const navItems: NavItem[] = [
     label: 'Appointments',
     icon: 'tabler--calendar-time',
     roles: ['clinician', 'front_desk'],
+  },
+  {
+    to: '/messages',
+    label: 'Messages',
+    icon: 'tabler--mail',
+    roles: ['clinician', 'front_desk', 'manager'],
   },
   { to: '/duplicates', label: 'Duplicates', icon: 'tabler--users-group', roles: ['clinician'] },
   { to: '/import', label: 'Import', icon: 'tabler--database-import', roles: [] },
@@ -112,6 +119,7 @@ export function AppLayout() {
                 >
                   <i className={`iconify ${item.icon} size-4.5 shrink-0`} aria-hidden />
                   <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
+                  {item.to === '/messages' && <UnreadNavBadge collapsed={collapsed} />}
                 </NavLink>
               </li>
             ))}
@@ -156,6 +164,39 @@ export function AppLayout() {
   )
 }
 
+/** Unread-message count, polled so the badge stays fresh without a reload. */
+function UnreadNavBadge({ collapsed }: { collapsed: boolean }) {
+  const { data } = useUnreadCountQuery(undefined, { pollingInterval: 30_000 })
+  if (!data || data.count === 0) return null
+  return (
+    <span
+      className={`bg-primary ml-auto rounded-full px-1.5 py-0.5 text-[10.5px] font-bold text-white ${
+        collapsed ? 'lg:absolute lg:top-1 lg:right-1 lg:ml-0 lg:px-1 lg:py-0' : ''
+      }`}
+    >
+      {data.count}
+    </span>
+  )
+}
+
+function TopbarMail() {
+  const { data } = useUnreadCountQuery(undefined, { pollingInterval: 30_000 })
+  return (
+    <Link
+      to="/messages"
+      className="text-ink-muted hover:bg-well hover:text-ink relative flex size-9 items-center justify-center rounded-full transition-colors"
+      aria-label="Messages"
+    >
+      <i className="iconify tabler--mail text-[19px]" aria-hidden />
+      {(data?.count ?? 0) > 0 && (
+        <span className="bg-primary absolute top-1 right-1 flex size-4 items-center justify-center rounded-full text-[9.5px] font-bold text-white">
+          {data!.count > 9 ? '9+' : data!.count}
+        </span>
+      )}
+    </Link>
+  )
+}
+
 function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
   const user = useAppSelector((s) => s.auth.user)
   const dispatch = useAppDispatch()
@@ -192,6 +233,7 @@ function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
       </div>
 
       <div className="flex items-center gap-1.5">
+        <TopbarMail />
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="text-ink-muted hover:bg-well hover:text-ink flex size-9 items-center justify-center rounded-full transition-colors"

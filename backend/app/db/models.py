@@ -101,6 +101,31 @@ class Observation(Base):
     encounter: Mapped["Encounter"] = relationship(back_populates="observations")
 
 
+class Message(Base):
+    """Internal email-style message between staff, optionally about a patient.
+
+    root_id groups a conversation: it equals the first message's id and is
+    inherited by every reply, so a thread is one indexed lookup.
+    """
+
+    __tablename__ = "messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sender_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    recipient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
+    root_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
+    recipient: Mapped["User"] = relationship(foreign_keys=[recipient_id])
+    patient: Mapped["Patient | None"] = relationship()
+
+
 class ConsentGrant(Base):
     """An access rule on a restricted record: a role or a specific user."""
 

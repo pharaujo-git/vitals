@@ -357,6 +357,59 @@ class RiskFlagOut(ApiModel):
     reasons: list[str]
 
 
+# --- Messages ---
+
+
+class MessageInput(ApiModel):
+    recipient_id: uuid.UUID
+    subject: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1)
+    patient_id: uuid.UUID | None = None
+    parent_id: uuid.UUID | None = None
+
+
+class MessageOut(ApiModel):
+    id: uuid.UUID
+    root_id: uuid.UUID
+    sender_id: uuid.UUID
+    sender_name: str
+    recipient_id: uuid.UUID
+    recipient_name: str
+    patient_id: uuid.UUID | None
+    patient_name: str | None
+    subject: str
+    body: str
+    read_at: datetime | None
+    created_at: datetime
+
+    @classmethod
+    def from_orm_message(cls, m) -> "MessageOut":
+        return cls(
+            id=m.id,
+            root_id=m.root_id,
+            sender_id=m.sender_id,
+            sender_name=m.sender.display_name,
+            recipient_id=m.recipient_id,
+            recipient_name=m.recipient.display_name,
+            patient_id=m.patient_id,
+            patient_name=f"{m.patient.first_name} {m.patient.last_name}" if m.patient else None,
+            subject=m.subject,
+            body=m.body,
+            read_at=m.read_at,
+            created_at=m.created_at,
+        )
+
+
+class RecipientOut(ApiModel):
+    id: uuid.UUID
+    display_name: str
+    role: str
+
+
+class UnreadCount(ApiModel):
+    count: int
+
+
 # --- Reports ---
 
 

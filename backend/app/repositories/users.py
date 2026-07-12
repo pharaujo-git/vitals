@@ -13,6 +13,10 @@ class UserRepository(Repository):
     def by_email(self, email: str) -> models.User | None:
         return self.db.scalar(select(models.User).where(models.User.email == email))
 
+    def all_users(self, limit: int = 200) -> list[models.User]:
+        stmt = select(models.User).order_by(models.User.display_name).limit(limit)
+        return list(self.db.scalars(stmt))
+
     def clinicians(self) -> list[models.User]:
         stmt = (
             select(models.User)
