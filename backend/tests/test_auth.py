@@ -83,6 +83,20 @@ def test_logout_revokes_without_theft_response(db):
         auth.rotate_refresh_token(db, token)
 
 
+def test_logout_everywhere_revokes_all_sessions(db):
+    user = make_user(db)
+    tokens = [auth.issue_refresh_token(db, user) for _ in range(3)]
+
+    auth.logout_everywhere(db, user)
+
+    live = db.query(models.RefreshToken).filter_by(user_id=user.id, revoked_at=None).count()
+    assert live == 0
+    assert user.sessions_revoked_at is not None
+    for token in tokens:
+        with pytest.raises(ValueError):
+            auth.rotate_refresh_token(db, token)
+
+
 def test_lockout_after_repeated_failures(db):
     user = make_user(db, password="password123")
     for _ in range(4):

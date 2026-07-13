@@ -161,6 +161,20 @@ def reset_password(db: Session, token_id: str, new_password: str) -> models.User
     return user
 
 
+def logout_everywhere(db: Session, user: models.User) -> None:
+    """Kill every session immediately: revoke all refresh tokens and set the
+    cutoff that invalidates access tokens issued before this moment."""
+    now = datetime.now(timezone.utc)
+    db.execute(
+        update(models.RefreshToken)
+        .where(models.RefreshToken.user_id == user.id,
+               models.RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    user.sessions_revoked_at = now
+    db.commit()
+
+
 # --- Refresh-token rotation ---
 
 

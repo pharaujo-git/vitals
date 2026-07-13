@@ -29,10 +29,12 @@ def _create_token(
     user_id: uuid.UUID, token_type: str, lifetime: timedelta, jti: uuid.UUID | None = None
 ) -> str:
     settings = get_settings()
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "type": token_type,
-        "exp": datetime.now(timezone.utc) + lifetime,
+        "iat": now,
+        "exp": now + lifetime,
     }
     if jti is not None:
         payload["jti"] = str(jti)
@@ -74,28 +76,38 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, uuid.UUID]:
     return uuid.UUID(payload["sub"]), uuid.UUID(payload["jti"])
 
 
+def _user_from_access_payload(db: Session, payload: dict) -> models.User:
+    if payload.get("type") != "access":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
+    user = db.get(models.User, uuid.UUID(payload["sub"]))
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
+    if not user.active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
+    if user.sessions_revoked_at is not None:
+        issued_at = payload.get("iat")
+        # Whole-second comparison: iat carries second precision, and a token
+        # minted in the same second as the revocation (e.g. an immediate
+        # re-login) must stay valid.
+        if issued_at is None or int(issued_at) < int(user.sessions_revoked_at.timestamp()):
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED, "Session revoked; sign in again"
+            )
+    return user
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
-    user_id = decode_token(credentials.credentials, "access")
-    user = db.get(models.User, user_id)
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
-    if not user.active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
-    return user
+    return _user_from_access_payload(db, _decode(credentials.credentials))
 
 
 def user_from_token(db: Session, token: str) -> models.User:
     """Authenticate a raw access token (SSE: EventSource can't send headers)."""
-    user_id = decode_token(token, "access")
-    user = db.get(models.User, user_id)
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
-    return user
+    return _user_from_access_payload(db, _decode(token))
 
 
 def require_roles(*roles: str):

@@ -99,6 +99,18 @@ def reset_password(body: schemas.ResetPasswordRequest, db: Session = Depends(get
         raise HTTPException(400, str(exc))
 
 
+@router.post("/logout-all", status_code=204)
+def logout_all(
+    response: Response,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(security.get_current_user),
+):
+    """Sign out everywhere, including the session making this call."""
+    auth_service.logout_everywhere(db, user)
+    audit(db, user, "auth.logout_all", entity_type="user", entity_id=user.id)
+    response.delete_cookie(REFRESH_COOKIE, path="/api/auth")
+
+
 @router.get("/me", response_model=schemas.UserOut)
 def me(user: models.User = Depends(security.get_current_user)):
     return user

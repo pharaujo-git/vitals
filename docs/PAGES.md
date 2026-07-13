@@ -379,8 +379,15 @@ Internal email-style messaging between staff.
   current password and a confirmed new one (min. 8 characters). A
   successful change **revokes every other session's refresh token**, so
   stolen or forgotten logins die with the old password.
+- **Sessions card** (`POST /api/auth/logout-all`) — **Sign out everywhere**
+  (with confirmation) ends every active session on every device, including
+  the current one: all refresh tokens are revoked *and* a server-side cutoff
+  invalidates access tokens issued before that moment, so other devices are
+  signed out on their very next request — not up to an hour later when their
+  token would have expired.
 
-Both actions are audited (`user.profile_updated`, `user.password_changed`).
+All three actions are audited (`user.profile_updated`,
+`user.password_changed`, `auth.logout_all`).
 
 ## Users — `/users`
 
@@ -454,6 +461,9 @@ refresh token lives only in an **httpOnly SameSite=Lax cookie** scoped to
 `/api/auth` — JavaScript never sees it. Every refresh **rotates** the token
 server-side; replaying a rotated token is treated as theft and revokes every
 session for that user. Logout revokes the token and clears the cookie.
+Access tokens carry an issued-at claim checked against a per-user
+revocation cutoff, which is how **Sign out everywhere** takes effect
+immediately rather than at token expiry.
 
 ## Testing & tooling
 

@@ -1,11 +1,18 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
+import { baseApi } from '../../shared/api/baseApi'
 import { roleLabels } from '../../shared/api/types'
 import { Button } from '../../shared/ui/Button'
+import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { Input, Label } from '../../shared/ui/Field'
 import { Card, ErrorNote, PageBody, PageHeader } from '../../shared/ui/Page'
-import { useChangePasswordMutation, useUpdateProfileMutation } from '../auth/api'
-import { updateUser } from '../auth/authSlice'
+import {
+  useChangePasswordMutation,
+  useLogoutAllMutation,
+  useUpdateProfileMutation,
+} from '../auth/api'
+import { clearCredentials, updateUser } from '../auth/authSlice'
 
 /** Downscale the picked image to a small square JPEG data URL so avatars
  *  stay well under the server's size cap. */
@@ -204,6 +211,45 @@ function PasswordCard() {
   )
 }
 
+function SessionsCard() {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const [logoutAll, { isLoading }] = useLogoutAllMutation()
+  const [confirming, setConfirming] = useState(false)
+
+  async function onLogoutAll() {
+    await logoutAll()
+    // Every token (including this session's) is now dead server-side.
+    dispatch(clearCredentials())
+    dispatch(baseApi.util.resetApiState())
+    navigate('/login')
+  }
+
+  return (
+    <Card title="Sessions">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-ink-muted max-w-md text-[13px]">
+          Signed in on a shared or lost device? This immediately signs you out{' '}
+          <span className="text-ink font-semibold">everywhere</span> — every browser and device,
+          including this one. You'll need to sign in again.
+        </p>
+        <Button variant="danger" onClick={() => setConfirming(true)}>
+          <i className="iconify tabler--device-laptop-off" aria-hidden /> Sign out everywhere
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        title="Sign out everywhere"
+        message="End every active session on every device, including this one?"
+        confirmLabel="Sign out everywhere"
+        busy={isLoading}
+        onConfirm={onLogoutAll}
+        onClose={() => setConfirming(false)}
+      />
+    </Card>
+  )
+}
+
 export function ProfilePage() {
   return (
     <>
@@ -211,7 +257,10 @@ export function ProfilePage() {
       <PageBody>
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <ProfileCard />
-          <PasswordCard />
+          <div className="space-y-4">
+            <PasswordCard />
+            <SessionsCard />
+          </div>
         </div>
       </PageBody>
     </>

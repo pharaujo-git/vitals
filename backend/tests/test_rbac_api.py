@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -51,6 +53,20 @@ def test_audit_log_is_admin_only(client, db):
     admin = make_user(db, "admin")
     assert client.get("/api/audit", headers=auth_header(clinician)).status_code == 403
     assert client.get("/api/audit", headers=auth_header(admin)).status_code == 200
+
+
+def test_logout_all_kills_live_access_tokens(client, db):
+    user = make_user(db, "clinician")
+    token = auth_header(user)
+    assert client.get("/api/auth/me", headers=token).status_code == 200
+
+    time.sleep(1.1)  # ensure the token's iat second precedes the cutoff second
+    assert client.post("/api/auth/logout-all", headers=token).status_code == 204
+
+    assert client.get("/api/auth/me", headers=token).status_code == 401
+    # A fresh sign-in works immediately.
+    fresh = auth_header(user)
+    assert client.get("/api/auth/me", headers=fresh).status_code == 200
 
 
 def test_manager_cohort_is_deidentified(client, db):
